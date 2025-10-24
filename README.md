@@ -4,11 +4,3 @@ AI-Powered Transaction Scrutinization Engine detects credit card fraud in real-t
 # AI-Powered Transaction Scrutinization Engine
 
 Real-time fraud detection system using machine learning.
-
-## 🚀 Quick Start
-
-### Backend
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload
