@@ -1,5 +1,7 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import Dashboard from "./pages/Dashboard.jsx";
 import Transactions from "./pages/Transactions.jsx";
 import Customers from "./pages/Customers.jsx";
@@ -7,6 +9,7 @@ import Configuration from "./pages/Configuration.jsx";
 import Reports from "./pages/Reports.jsx";
 import SystemAdmin from "./pages/SystemAdmin.jsx";
 import Login from "./pages/Login.jsx";
+import Register from "./pages/Register.jsx";
 import { AuthProvider, useAuth } from "./hooks/useAuth.jsx";
 import TopNav from "./components/Layout/TopNav.jsx";
 
@@ -14,7 +17,12 @@ const AppContent = () => {
   const { isLoggedIn } = useAuth();
 
   if (!isLoggedIn) {
-    return <Login />;
+    return (
+      <Routes>
+        <Route path="/register" element={<Register />} />
+        <Route path="*" element={<Login />} />
+      </Routes>
+    );
   }
 
   return (
@@ -40,6 +48,7 @@ const App = () => {
     <AuthProvider>
       <Router>
         <AppContent />
+        <ToastContainer position="top-right" autoClose={3000} />
       </Router>
     </AuthProvider>
   );

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Shield, Eye, EyeOff } from 'lucide-react';
+import { toast } from 'react-toastify';
 import Card from '../components/Common/Card';
 import Button from '../components/Common/Button';
 import { useAuth } from '../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+
+import { useNavigate, Link } from 'react-router-dom';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -16,12 +18,15 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     const success = await login(email, password);
     setLoading(false);
-    
+
     if (success) {
+      toast.success("Login successful!");
       navigate('/dashboard');
+    } else {
+      toast.error("Invalid email or password");
     }
   };
 
@@ -85,9 +90,9 @@ const Login = () => {
             </label>
           </div>
 
-          <Button 
-            type="submit" 
-            className="w-full" 
+          <Button
+            type="submit"
+            className="w-full"
             disabled={loading}
           >
             {loading ? 'Signing in...' : 'Sign In'}
@@ -101,11 +106,11 @@ const Login = () => {
           </button>
         </form>
 
-        {/* Demo credentials */}
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-          <p className="text-xs text-blue-700 text-center">
-            <strong>Demo credentials:</strong> Use any email and password
-          </p>
+
+        <div className="text-center mt-4">
+          <Link to="/register" className="text-sm text-blue-600 hover:text-blue-700 transition-colors">
+            Don't have an account? Sign Up
+          </Link>
         </div>
       </Card>
     </div>
