@@ -12,6 +12,7 @@ import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import { AuthProvider, useAuth } from "./hooks/useAuth.jsx";
 import TopNav from "./components/Layout/TopNav.jsx";
+import SessionTimeout from "./components/Common/SessionTimeout.jsx";
 
 const AppContent = () => {
   const { isLoggedIn } = useAuth();
@@ -28,6 +29,7 @@ const AppContent = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <TopNav />
+      <SessionTimeout />
       <main className="p-6">
         <Routes>
           <Route path="/" element={<Dashboard />} />
