@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { CreditCard, AlertTriangle, Clock, Zap } from 'lucide-react';
@@ -10,12 +10,88 @@ import Button from '../components/Common/Button.jsx';
 const Dashboard = () => {
   const navigate = useNavigate();
   const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [stats, setStats] = useState({
+    total_transactions: 0,
+    fraud_detected: 0,
+    under_review: 0,
+    avg_response_ms: 0
+  });
+  const [graphData, setGraphData] = useState([]);
+  const [riskyMerchants, setRiskyMerchants] = useState([]);
+
+  // Fetch recent transactions (Polling)
+  useEffect(() => {
+    const fetchTransactions = async () => {
+        try {
+            const response = await fetch('http://localhost:8000/api/transactions/recent');
+            if (response.ok) {
+                const data = await response.json();
+                // Map backend data to UI format
+                // Backend returns: id, customer_id, merchant, amount, timestamp, fraud_score, status, customer_name, card_type, card_last_four
+                const mappedTxns = data.map(txn => ({
+                    id: txn.id,
+                    time: new Date(txn.timestamp).toLocaleTimeString(),
+                    amount: `LKR ${txn.amount.toFixed(2)}`,
+                    merchant: txn.merchant,
+                    // customer info for display
+                    description: `Transaction by ${txn.customer_name} (${txn.card_type} ...${txn.card_last_four})`,
+                    score: txn.fraud_score,
+                    decision: txn.status, 
+                    status: txn.status === 'Decline' ? 'danger' : (txn.status === 'Escalate' ? 'warning' : 'success')
+                }));
+                setTransactions(mappedTxns);
+            }
+        } catch (error) {
+            console.error("Error fetching transactions:", error);
+        }
+    };
+
+    const fetchDashboardData = async () => {
+        try {
+            // Fetch Stats
+            const statsRes = await fetch('http://localhost:8000/api/dashboard/stats');
+            if (statsRes.ok) {
+                const statsJson = await statsRes.json();
+                setStats(statsJson);
+            }
+
+            // Fetch Graph Trends
+            const trendsRes = await fetch('http://localhost:8000/api/dashboard/trends');
+            if (trendsRes.ok) {
+                const trendsJson = await trendsRes.json();
+                setGraphData(trendsJson);
+            }
+
+            // Fetch Risky Merchants
+            const riskRes = await fetch('http://localhost:8000/api/dashboard/risky-merchants');
+            if (riskRes.ok) {
+                const riskJson = await riskRes.json();
+                setRiskyMerchants(riskJson);
+            }
+        } catch (error) {
+            console.error("Error fetching dashboard data:", error);
+        }
+    };
+
+    // Initial fetch
+    fetchTransactions();
+    fetchDashboardData();
+
+    // Poll every 2 seconds
+    const interval = setInterval(() => {
+        fetchTransactions();
+        fetchDashboardData();
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const dashboardKPIs = [
-    { label: 'Transactions Today', value: '1,247', icon: CreditCard, color: 'blue' },
-    { label: 'Fraud Detected', value: '15', icon: AlertTriangle, color: 'red' },
-    { label: 'Under Review', value: '42', icon: Clock, color: 'amber' },
-    { label: 'Avg Response', value: '145ms', icon: Zap, color: 'green' },
+    { label: 'Transactions Today', value: stats.total_transactions.toLocaleString(), icon: CreditCard, color: 'blue' },
+    { label: 'Fraud Detected', value: stats.fraud_detected, icon: AlertTriangle, color: 'red' },
+    { label: 'Under Review', value: stats.under_review, icon: Clock, color: 'amber' },
+    { label: 'Avg Response', value: `${stats.avg_response_ms}ms`, icon: Zap, color: 'green' },
   ];
 
   const fraudTrendsData = [
@@ -28,17 +104,7 @@ const Dashboard = () => {
     { date: 'Sun', fraud: 14, approved: 112, review: 9 },
   ];
 
-  const transactions = [
-    { id: 'TXN-001', time: '2 min ago', amount: '$2,450.00', merchant: 'Amazon', score: 0.92, decision: 'Fraud', status: 'danger' },
-    { id: 'TXN-002', time: '5 min ago', amount: '$89.99', merchant: 'Spotify', score: 0.15, decision: 'Approved', status: 'success' },
-    { id: 'TXN-003', time: '12 min ago', amount: '$1,200.00', merchant: 'Unknown Merchant', score: 0.68, decision: 'Review', status: 'warning' },
-  ];
-
-  const riskyMerchants = [
-    { name: 'Unknown Merchant XYZ', risk: 0.92, txns: 47 },
-    { name: 'Crypto Exchange ABC', risk: 0.85, txns: 23 },
-    { name: 'Wire Transfer Service', risk: 0.78, txns: 15 },
-  ];
+  // const riskyMerchants = []; // Now fetched from API
 
   const KPICard = ({ label, value, icon: Icon, color }) => {
     const colorMap = {
@@ -81,9 +147,9 @@ const Dashboard = () => {
       <Card className="p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Fraud Trends (Last 7 Days)</h2>
         <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={fraudTrendsData}>
+          <LineChart data={graphData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="date" stroke="#6b7280" />
+            <XAxis dataKey="name" stroke="#6b7280" />
             <YAxis stroke="#6b7280" />
             <Tooltip />
             <Legend />
@@ -98,24 +164,29 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Live Feed */}
         <Card className="p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Live Feed</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Live Feed (Real-Time)</h2>
           <div className="space-y-3">
-            {transactions.slice(0, 3).map((txn) => (
-              <div 
-                key={txn.id} 
-                onClick={() => setSelectedTransaction(txn)} 
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-              >
-                <div className="flex-1">
+            {transactions.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">Waiting for simulator traffic...</p>
+            ) : (
+                transactions.map((txn) => (
+                <div 
+                    key={txn.id} 
+                    onClick={() => setSelectedTransaction(txn)} 
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+                >
+                    <div className="flex-1">
                   <p className="font-medium text-gray-900">{txn.merchant}</p>
+                  <p className="text-xs text-blue-600 font-semibold">{txn.description}</p>
                   <p className="text-sm text-gray-500">{txn.time}</p>
                 </div>
-                <div className="text-right">
-                  <p className="font-medium text-gray-900">{txn.amount}</p>
-                  <Badge variant={txn.status}>{txn.decision}</Badge>
+                    <div className="text-right">
+                    <p className="font-medium text-gray-900">{txn.amount}</p>
+                    <Badge variant={txn.status}>{txn.decision}</Badge>
+                    </div>
                 </div>
-              </div>
-            ))}
+                ))
+            )}
           </div>
         </Card>
 
@@ -176,7 +247,7 @@ const Dashboard = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Confidence</span>
-                  <span className="font-medium text-gray-900">94%</span>
+                  <span className="font-medium text-gray-900">{(Math.abs(selectedTransaction.score - 0.5) * 200).toFixed(1)}%</span>
                 </div>
               </div>
             </div>
