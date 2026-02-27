@@ -14,3 +14,6 @@ scikit-learn
 xgboost
 pandas
 numpy
+pyotp
+qrcode
+emails
