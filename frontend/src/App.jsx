@@ -8,6 +8,7 @@ import Customers from "./pages/Customers.jsx";
 import Configuration from "./pages/Configuration.jsx";
 import Reports from "./pages/Reports.jsx";
 import SystemAdmin from "./pages/SystemAdmin.jsx";
+import ProfileSettings from "./pages/ProfileSettings.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import { AuthProvider, useAuth } from "./hooks/useAuth.jsx";
@@ -37,6 +38,7 @@ const AppContent = () => {
           <Route path="/configuration" element={<Configuration />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/system-admin" element={<SystemAdmin />} />
+          <Route path="/profile" element={<ProfileSettings />} />
         </Routes>
       </main>
     </div>

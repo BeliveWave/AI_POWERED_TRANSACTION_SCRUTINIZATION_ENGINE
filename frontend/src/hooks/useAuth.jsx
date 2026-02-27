@@ -8,49 +8,52 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Define fetchUser first to avoid hoisting issues (though technically fine with function, const triggers TDZ checks sometimes)
+  const fetchUser = async () => {
+      try {
+          const res = await api.get('/auth/me');
+          setUser(res.data);
+      } catch (err) {
+          console.error("Failed to fetch user", err);
+      }
+  };
+
   useEffect(() => {
     // Check for existing session
-    const token = localStorage.getItem('authToken');
-    const userData = localStorage.getItem('userData');
-
-    if (token && userData) {
+    const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+    
+    if (token) {
       setIsLoggedIn(true);
-      setUser(JSON.parse(userData));
+      fetchUser();
     }
     setLoading(false);
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (username, password, otpCode = null) => {
     try {
-      const response = await axios.post('http://localhost:8000/auth/login', {
-        username_or_email: email,
-        password: password,
+      const response = await api.post("/auth/login", { 
+        username_or_email: username, 
+        password,
+        otp_code: otpCode 
       });
-
-      if (response.status === 200) {
-        const { access_token } = response.data;
-        const userData = {
-          email: email,
-          name: email.split('@')[0], // Placeholder name
-          role: 'user'
-        };
-
-        setIsLoggedIn(true);
-        setUser(userData);
-        localStorage.setItem('authToken', access_token);
-        localStorage.setItem('userData', JSON.stringify(userData));
-        return true;
-      }
-      return false;
+      const { access_token } = response.data;
+      localStorage.setItem("token", access_token);
+      setIsLoggedIn(true);
+      await fetchUser(); // Ensure we fetch user data after login
+      return { success: true };
     } catch (error) {
-      console.error('Login error:', error.response?.data || error.message);
-      return false;
+      console.error("Login failed", error);
+      // Return error object to handle 2FA 403 in UI
+      if (error.response?.status === 403 && error.response?.data?.detail === "2FA Required") {
+          return { success: false, requires2FA: true };
+      }
+      return { success: false, error: error.response?.data?.detail || "Login failed" };
     }
   };
 
   const register = async (email, username, fullName, password) => {
     try {
-      const response = await axios.post('http://localhost:8000/auth/register', {
+      const response = await api.post('/auth/register', {
         email: email,
         username: username,
         full_name: fullName,
@@ -93,6 +96,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setIsLoggedIn(false);
     setUser(null);
+    localStorage.removeItem('token');
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
     // Redirect to login page

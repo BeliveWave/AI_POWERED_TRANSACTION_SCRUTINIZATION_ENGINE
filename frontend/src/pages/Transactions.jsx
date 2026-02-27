@@ -9,13 +9,57 @@ const Transactions = () => {
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [filterModalOpen, setFilterModalOpen] = useState(false);
 
-  const transactions = [
-    { id: 'TXN-001', time: '2 min ago', amount: '$2,450.00', merchant: 'Amazon', country: 'US', score: 0.92, decision: 'Fraud', status: 'danger' },
-    { id: 'TXN-002', time: '5 min ago', amount: '$89.99', merchant: 'Spotify', country: 'US', score: 0.15, decision: 'Approved', status: 'success' },
-    { id: 'TXN-003', time: '12 min ago', amount: '$1,200.00', merchant: 'Unknown Merchant', country: 'NG', score: 0.68, decision: 'Review', status: 'warning' },
-    { id: 'TXN-004', time: '18 min ago', amount: '$45.50', merchant: 'Starbucks', country: 'US', score: 0.08, decision: 'Approved', status: 'success' },
-    { id: 'TXN-005', time: '25 min ago', amount: '$5,600.00', merchant: 'Wire Transfer', country: 'CN', score: 0.85, decision: 'Fraud', status: 'danger' },
-  ];
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filters, setFilters] = useState({ minAmt: '', maxAmt: '', status: 'All', date: 'today' });
+  
+  // Fetch transactions with filters
+  const fetchTransactions = async () => {
+    setLoading(true);
+    try {
+        const queryParams = new URLSearchParams();
+        if (searchQuery) queryParams.append('search', searchQuery);
+        if (filters.minAmt) queryParams.append('min_amt', filters.minAmt);
+        if (filters.maxAmt) queryParams.append('max_amt', filters.maxAmt);
+        if (filters.status !== 'All') queryParams.append('decision', filters.status);
+        queryParams.append('date_filter', filters.date);
+
+        const response = await fetch(`http://localhost:8000/api/transactions?${queryParams}`);
+        if (response.ok) {
+            const data = await response.json();
+            setTransactions(data);
+        }
+    } catch (error) {
+        console.error("Error fetching transactions:", error);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+      // Debounce search
+      const timer = setTimeout(() => {
+          fetchTransactions();
+      }, 500);
+      return () => clearTimeout(timer);
+  }, [searchQuery, filters]);
+
+  const handleDecision = async (decision) => {
+      if (!selectedTransaction) return;
+      try {
+          const response = await fetch(`http://localhost:8000/api/transactions/${selectedTransaction.id}/decide?decision=${decision}`, {
+              method: 'POST'
+          });
+          if (response.ok) {
+              setFilterModalOpen(false); // Reuse this state? No, modal state is 'selectedTransaction'
+              setSelectedTransaction(null);
+              fetchTransactions(); // Refresh list
+          }
+      } catch (error) {
+          console.error("Error updating transaction:", error);
+      }
+  };
 
   const getScoreColor = (score) => {
     if (score > 0.7) return 'bg-red-500';
@@ -35,22 +79,40 @@ const Transactions = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <input
             type="text"
-            placeholder="Search merchant, card..."
+            placeholder="Search ID, Merchant, Customer..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
-          <input
-            type="date"
+          <div className="flex space-x-2">
+            <input
+                type="number"
+                placeholder="Min Amt"
+                value={filters.minAmt}
+                onChange={(e) => setFilters({...filters, minAmt: e.target.value})}
+                className="w-1/2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <input
+                type="number"
+                placeholder="Max Amt"
+                value={filters.maxAmt}
+                onChange={(e) => setFilters({...filters, maxAmt: e.target.value})}
+                className="w-1/2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <select 
+            value={filters.status}
+            onChange={(e) => setFilters({...filters, status: e.target.value})}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-          <select className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-            <option>All Decisions</option>
-            <option>Approved</option>
-            <option>Fraud</option>
-            <option>Review</option>
+          >
+            <option value="All">All Decisions</option>
+            <option value="Approve">Approved</option>
+            <option value="Decline">Fraud (Decline)</option>
+            <option value="Escalate">Review (Escalate)</option>
           </select>
           <div className="flex space-x-2">
-            <Button variant="secondary" icon={Filter} onClick={() => setFilterModalOpen(true)}>
-              Filter
+            <Button variant="secondary" icon={Filter} onClick={fetchTransactions}>
+              Refresh
             </Button>
             <Button variant="secondary" icon={Download}>
               Export
@@ -65,45 +127,71 @@ const Transactions = () => {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transaction ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Merchant</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Country</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Decision</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {transactions.map((txn) => (
-                <tr key={txn.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{txn.time}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{txn.amount}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{txn.merchant}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{txn.country}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <div className="flex items-center space-x-2">
-                      <div className={`w-3 h-3 rounded-full ${getScoreColor(txn.score)}`}></div>
-                      <span className="font-medium">{(txn.score * 100).toFixed(0)}%</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <Badge variant={txn.status}>{txn.decision}</Badge>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <button
-                      onClick={() => setSelectedTransaction(txn)}
-                      className="text-blue-600 hover:text-blue-900 font-medium"
-                    >
-                      View
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {transactions.length === 0 ? (
+                  <tr><td colSpan="8" className="p-4 text-center text-gray-500">No transactions found</td></tr>
+              ) : (
+                transactions.map((txn) => (
+                    <tr key={txn.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">TXN-{txn.id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                        <div>
+                        <p className="text-sm font-medium text-gray-900">{txn.customer_name}</p>
+                        <p className="text-xs text-gray-500">{txn.card_type} ...{txn.card_last_four}</p>
+                        </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(txn.timestamp).toLocaleString()}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">LKR {txn.amount.toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{txn.merchant}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <div className="flex items-center space-x-2">
+                        <div className={`w-3 h-3 rounded-full ${getScoreColor(txn.fraud_score)}`}></div>
+                        <span className="font-medium">{(txn.fraud_score * 100).toFixed(0)}%</span>
+                        </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <Badge variant={txn.status === 'Decline' ? 'danger' : (txn.status === 'Escalate' ? 'warning' : 'success')}>
+                            {txn.status}
+                        </Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <button
+                        onClick={() => setSelectedTransaction(txn)}
+                        className="text-blue-600 hover:text-blue-900 font-medium"
+                        >
+                        View
+                        </button>
+                    </td>
+                    </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </Card>
+
+      {/* View All / Today Toggle (Bottom of page as requested) */}
+      <div className="flex justify-center pb-8">
+          {filters.date === 'today' ? (
+              <Button onClick={() => setFilters({ ...filters, date: 'all' })} variant="secondary">
+                  View All History (Slow)
+              </Button>
+          ) : (
+              <Button onClick={() => setFilters({ ...filters, date: 'today' })}>
+                  Show Today Only
+              </Button>
+          )}
+      </div>
 
       {/* Transaction Details Modal */}
       <Modal
@@ -127,10 +215,11 @@ const Transactions = () => {
                 <p className="text-sm text-gray-500">Merchant</p>
                 <p className="font-medium">{selectedTransaction.merchant}</p>
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Country</p>
-                <p className="font-medium">{selectedTransaction.country}</p>
-              </div>
+               <div>
+                 <p className="text-sm text-gray-500">Card</p>
+                 <p className="font-medium">{selectedTransaction.card_type} ...{selectedTransaction.card_last_four}</p>
+               </div>
+
             </div>
 
             <div className="border-t pt-4">
@@ -138,23 +227,43 @@ const Transactions = () => {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Fraud Score</span>
-                  <span className="font-medium">{(selectedTransaction.score * 100).toFixed(1)}%</span>
+                  <span className="font-medium">{(selectedTransaction.fraud_score * 100).toFixed(1)}%</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Decision</span>
-                  <Badge variant={selectedTransaction.status}>{selectedTransaction.decision}</Badge>
+                  <Badge variant={selectedTransaction.status === 'Decline' ? 'danger' : (selectedTransaction.status === 'Escalate' ? 'warning' : 'success')}>
+                      {selectedTransaction.status}
+                  </Badge>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Confidence</span>
-                  <span className="font-medium">94%</span>
+                  <span className="font-medium">{(Math.abs(selectedTransaction.fraud_score - 0.5) * 200).toFixed(1)}%</span>
                 </div>
               </div>
             </div>
 
             <div className="flex space-x-3">
-              <Button variant="success" className="flex-1">Approve</Button>
-              <Button variant="danger" className="flex-1">Decline</Button>
-              <Button variant="secondary" className="flex-1">Review</Button>
+              {/* STATUS: REVIEW (Escalate) - Show Approve & Decline */}
+              {selectedTransaction.status === 'Escalate' && (
+                  <>
+                    <Button variant="success" className="flex-1" onClick={() => handleDecision('Approve')}>Approve</Button>
+                    <Button variant="danger" className="flex-1" onClick={() => handleDecision('Decline')}>Decline</Button>
+                  </>
+              )}
+
+              {/* STATUS: FRAUD (Decline) - Show Override */}
+              {selectedTransaction.status === 'Decline' && (
+                  <Button variant="secondary" className="flex-1" onClick={() => handleDecision('Approve')}>
+                      Override Approve (Force)
+                  </Button>
+              )}
+
+              {/* STATUS: APPROVED - Show Report Fraud */}
+              {selectedTransaction.status === 'Approve' && (
+                  <Button variant="danger" className="flex-1" onClick={() => handleDecision('Decline')}>
+                      Report Fraud (Decline)
+                  </Button>
+              )}
             </div>
           </div>
         )}
