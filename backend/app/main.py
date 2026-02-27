@@ -39,7 +39,7 @@
 
 # @app.get("/")
 # def root():
-#     return {"message": "Welcome to AI Powered Transaction Scrutinization Engine Backend"}
+#     return {"message": "Welcome to AI Powered Transaction Scrutinization Engine Backend"
 
 import joblib
 import numpy as np
