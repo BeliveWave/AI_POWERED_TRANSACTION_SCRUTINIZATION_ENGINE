@@ -13,9 +13,10 @@ import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import { AuthProvider, useAuth } from "./hooks/useAuth.jsx";
 import TopNav from "./components/Layout/TopNav.jsx";
+import SessionTimeout from "./components/Common/SessionTimeout.jsx";
 
 const AppContent = () => {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, logout } = useAuth();
 
   if (!isLoggedIn) {
     return (
@@ -27,21 +28,24 @@ const AppContent = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <TopNav />
-      <main className="p-6">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/transactions" element={<Transactions />} />
-          <Route path="/customers" element={<Customers />} />
-          <Route path="/configuration" element={<Configuration />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/system-admin" element={<SystemAdmin />} />
-          <Route path="/profile" element={<ProfileSettings />} />
-        </Routes>
-      </main>
-    </div>
+    <>
+      <div className="min-h-screen bg-gray-50">
+        <TopNav />
+        <main className="p-6">
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/customers" element={<Customers />} />
+            <Route path="/configuration" element={<Configuration />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/system-admin" element={<SystemAdmin />} />
+            <Route path="/profile" element={<ProfileSettings />} />
+          </Routes>
+        </main>
+      </div>
+      <SessionTimeout isLoggedIn={isLoggedIn} onLogout={logout} />
+    </>
   );
 };
 
