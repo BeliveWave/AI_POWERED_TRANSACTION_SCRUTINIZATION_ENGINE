@@ -27,6 +27,25 @@ class AuthService:
                 headers={"WWW-Authenticate": "Bearer"},
             )
             
+        # 2FA Check
+        if user.is_2fa_enabled:
+            # Import here to avoid circular dependency if any
+            from app.utils.security_2fa import verify_totp 
+            
+            if not login_data.otp_code:
+                # Client needs to know 2FA is required
+                # We can use a specific status code or message
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, # Forbidden until 2FA
+                    detail="2FA Required",
+                )
+            
+            if not verify_totp(user.otp_secret, login_data.otp_code):
+                 raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid 2FA Code",
+                )
+
         access_token = create_access_token(data={"sub": user.username})
         return {"access_token": access_token, "token_type": "bearer"}
 

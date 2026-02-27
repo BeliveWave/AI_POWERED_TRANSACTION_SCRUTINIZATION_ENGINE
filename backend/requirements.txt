@@ -9,3 +9,8 @@ python-jose[cryptography]
 python-multipart
 python-dotenv
 alembic
+joblib
+scikit-learn
+xgboost
+pandas
+numpy
