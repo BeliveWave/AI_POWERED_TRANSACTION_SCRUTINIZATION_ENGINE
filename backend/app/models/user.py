@@ -15,3 +15,13 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
+    
+    # New Security & Notification Fields
+    otp_secret = Column(String, nullable=True)
+    phone_number = Column(String, nullable=True)
+    notification_preferences = Column(String, default="{}") # Storing as JSON string
+    is_2fa_enabled = Column(Boolean, default=False)
+    
+    # Password Reset
+    reset_otp = Column(String, nullable=True) # 6 digit code
+    reset_otp_expires_at = Column(DateTime(timezone=True), nullable=True)
