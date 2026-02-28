@@ -257,22 +257,22 @@ classDiagram
 
     class UserRouter {
         +GET /users
-        +GET /users/{id}
-        +PUT /users/{id}
-        +DELETE /users/{id}
+        +GET /users/[id]
+        +PUT /users/[id]
+        +DELETE /users/[id]
     }
 
     class TransactionRouter {
         +GET /transactions
-        +GET /transactions/{id}
+        +GET /transactions/[id]
         +POST /transactions/analyze
-        +PUT /transactions/{id}/status
+        +PUT /transactions/[id]/status
     }
 
     class AdminRouter {
         +GET /admin/dashboard
         +GET /admin/users
-        +POST /admin/users/{id}/role
+        +POST /admin/users/[id]/role
         +GET /admin/alerts
         +GET /admin/statistics
     }
