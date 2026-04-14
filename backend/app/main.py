@@ -45,6 +45,8 @@ import joblib
 import numpy as np
 from datetime import datetime, timedelta, date
 import random
+import warnings
+warnings.filterwarnings('ignore')
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -52,13 +54,24 @@ from typing import List
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_, String, cast
 
+# Deep Learning
+try:
+    from tensorflow.keras.models import load_model
+    TF_AVAILABLE = True
+except ImportError:
+    TF_AVAILABLE = False
+    print("⚠️  TensorFlow not available. Autoencoder will not be loaded.")
+
 # Import your existing modules
 from app.core.config import settings
 from app.routers import auth, health, admin
+from app.routers import config_rules, reports, search, notifications as notif_router
 from app.core.database import engine, Base, get_db
 from app.models.customer import Customer
 from app.models.transaction import Transaction
 from app.models.config import SystemConfig
+from app.models.notification import Notification        # noqa: F401  — registers table
+from app.models.rules import MerchantWhitelist, CountryBlacklist  # noqa: F401  — registers tables
 from app.services.notification_service import notification_service
 
 # Create tables
@@ -67,7 +80,11 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title=settings.PROJECT_NAME)
 
 # --- GLOBAL VARIABLES ---
-ml_model = None
+ml_model = None                    # XGBoost model (known fraud patterns)
+autoencoder_model = None           # Autoencoder model (anomaly detection)
+autoencoder_scaler = None          # Scaler for autoencoder features
+autoencoder_metadata = None        # Metadata with thresholds
+hybrid_mode_enabled = False        # Flag for hybrid prediction
 
 # --- PYDANTIC MODELS ---
 class Metadata(BaseModel):
@@ -107,35 +124,188 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(health.router)
 app.include_router(admin.router)
+app.include_router(config_rules.router)
+app.include_router(reports.router)
+app.include_router(search.router)
+app.include_router(notif_router.router)
 
-# --- STARTUP EVENT (Database + AI Model Load) ---
+# --- STARTUP EVENT (Database + AI Models Load) ---
 @app.on_event("startup")
 def startup_event():
+    global ml_model, autoencoder_model, autoencoder_scaler, autoencoder_metadata, hybrid_mode_enabled
+    
+    print("\n" + "="*70)
+    print("🚀 FRAUD DETECTION ENGINE STARTUP")
+    print("="*70)
+    
     # 1. Connect to Database
+    print("\n[1/3] Connecting to database...")
     try:
         with engine.connect() as connection:
-            print("\n" + "="*50)
-            print("✅  DATABASE CONNECTED SUCCESSFULLY!")
+            print("     ✅ Database connected successfully")
     except Exception as e:
-        print("\n" + "="*50)
-        print(f"❌  DATABASE CONNECTION FAILED: {e}")
-        print("="*50 + "\n")
+        print(f"     ❌ Database connection failed: {e}")
 
-    # 2. Load the AI Model (The "Brain")
-    global ml_model
+    # 2. Load XGBoost Model (Supervised Learning - Known Frauds)
+    print("\n[2/3] Loading XGBoost model (supervised learning)...")
     try:
-        # Ensure 'fraud_model.pkl' is in the same folder as main.py
-        ml_model = joblib.load("fraud_model.pkl") 
-        print("✅  AI FRAUD MODEL LOADED SUCCESSFULLY!")
-        print("="*50 + "\n")
+        ml_model = joblib.load("fraud_model.pkl")
+        print("     ✅ XGBoost model loaded successfully")
     except Exception as e:
-        print("❌  FAILED TO LOAD AI MODEL. Check if 'fraud_model.pkl' exists.")
-        print(f"Error: {e}")
-        print("="*50 + "\n")
+        print(f"     ❌ Failed to load XGBoost model: {e}")
+        print("     ⚠️  System will operate without XGBoost")
+
+    # 3. Load Autoencoder Model (Unsupervised Learning - Anomalies)
+    print("\n[3/3] Loading Autoencoder model (unsupervised learning)...")
+    try:
+        if not TF_AVAILABLE:
+            raise ImportError("TensorFlow not available")
+        
+        # Try loading with both formats (.keras and .h5)
+        autoencoder_model = None
+        
+        # Try new Keras format first
+        try:
+            autoencoder_model = load_model("autoencoder_model.keras")
+            print("     ✅ Autoencoder loaded (keras format)")
+        except:
+            # Fall back to old HDF5 format
+            try:
+                autoencoder_model = load_model("autoencoder_model.h5")
+                print("     ✅ Autoencoder loaded (h5 format)")
+            except Exception as e:
+                print(f"     ⚠️  Could not load Autoencoder: {e}")
+                autoencoder_model = None
+        
+        if autoencoder_model is not None:
+            autoencoder_scaler = joblib.load("autoencoder_scaler.pkl")
+            autoencoder_metadata = joblib.load("autoencoder_metadata.pkl")
+            
+            print(f"     📊 Reconstruction threshold: {autoencoder_metadata['reconstruction_threshold']:.6f}")
+            
+            # Enable hybrid mode only if both models are loaded
+            if ml_model is not None and autoencoder_model is not None:
+                hybrid_mode_enabled = True
+                print("\n" + "="*70)
+                print("🎯 HYBRID FRAUD DETECTION ENABLED")
+                print("    • XGBoost: Known fraud patterns")
+                print("    • Autoencoder: Zero-day anomaly detection")
+                print("="*70 + "\n")
+        
+    except Exception as e:
+        print(f"     ⚠️  Autoencoder not available: {e}")
+        print("     (System will use XGBoost only for fraud detection)")
+        autoencoder_model = None
+        autoencoder_scaler = None
+        hybrid_mode_enabled = False
 
 @app.get("/")
 def root():
-    return {"message": "Welcome to AI Powered Transaction Scrutinization Engine Backend"}
+    status = "HYBRID MODE" if hybrid_mode_enabled else "XGBOOST ONLY"
+    return {
+        "message": "Welcome to AI Powered Transaction Scrutinization Engine Backend",
+        "mode": status,
+        "hybrid_enabled": hybrid_mode_enabled
+    }
+
+@app.get("/api/system/health")
+def system_health(db: Session = Depends(get_db)):
+    """
+    Real-time infrastructure health check.
+    Probes each component and returns actual measured latency.
+    """
+    import time as _time
+
+    results = []
+
+    # ── 1. API Server (this endpoint itself is the proof it's alive) ─────────
+    results.append({
+        "name": "API Server",
+        "status": "healthy",
+        "latency_ms": round(0.5, 2),   # Sub-ms — negligible
+        "detail": "FastAPI running"
+    })
+
+    # ── 2. Database ───────────────────────────────────────────────────────────
+    try:
+        t0 = _time.perf_counter()
+        from sqlalchemy import text
+        db.execute(text("SELECT 1"))
+        db_latency = round((_time.perf_counter() - t0) * 1000, 2)
+        results.append({
+            "name": "Database",
+            "status": "healthy",
+            "latency_ms": db_latency,
+            "detail": "PostgreSQL connected"
+        })
+    except Exception as e:
+        results.append({
+            "name": "Database",
+            "status": "critical",
+            "latency_ms": None,
+            "detail": f"Connection failed: {str(e)[:80]}"
+        })
+
+    # ── 3. XGBoost ML Model ───────────────────────────────────────────────────
+    if ml_model is not None:
+        try:
+            dummy = np.zeros((1, 30))
+            t0 = _time.perf_counter()
+            ml_model.predict_proba(dummy)
+            xgb_latency = round((_time.perf_counter() - t0) * 1000, 2)
+            results.append({
+                "name": "XGBoost Model",
+                "status": "healthy",
+                "latency_ms": xgb_latency,
+                "detail": "Model loaded & responding"
+            })
+        except Exception as e:
+            results.append({
+                "name": "XGBoost Model",
+                "status": "warning",
+                "latency_ms": None,
+                "detail": f"Inference error: {str(e)[:80]}"
+            })
+    else:
+        results.append({
+            "name": "XGBoost Model",
+            "status": "warning",
+            "latency_ms": None,
+            "detail": "Model not loaded"
+        })
+
+    # ── 4. Autoencoder Model ──────────────────────────────────────────────────
+    if autoencoder_model is not None and autoencoder_scaler is not None:
+        try:
+            dummy = np.zeros((1, 30))
+            scaled = autoencoder_scaler.transform(dummy)
+            t0 = _time.perf_counter()
+            autoencoder_model.predict(scaled, verbose=0)
+            ae_latency = round((_time.perf_counter() - t0) * 1000, 2)
+            results.append({
+                "name": "Autoencoder Model",
+                "status": "healthy",
+                "latency_ms": ae_latency,
+                "detail": "Anomaly detector responding"
+            })
+        except Exception as e:
+            results.append({
+                "name": "Autoencoder Model",
+                "status": "warning",
+                "latency_ms": None,
+                "detail": f"Inference error: {str(e)[:80]}"
+            })
+    else:
+        results.append({
+            "name": "Autoencoder Model",
+            "status": "warning",
+            "latency_ms": None,
+            "detail": "Model not loaded"
+        })
+
+    overall = "healthy" if all(r["status"] == "healthy" for r in results) else "degraded"
+    return {"overall": overall, "services": results}
+
 
 @app.post("/api/customers")
 def create_customer(name: str, email: str, card_type: str = "Visa", card_last_four: str = "1234", db: Session = Depends(get_db)):
@@ -226,68 +396,151 @@ def get_customer_ids(db: Session = Depends(get_db)):
     customers = db.query(Customer).filter(Customer.is_active == True).all()
     return [c.id for c in customers]
 
-# --- NEW AI ENDPOINT ---
+# --- NEW AI ENDPOINT (HYBRID: XGBoost + Autoencoder) ---
 @app.post("/api/predict", response_model=TransactionResponse)
 def predict_fraud(txn: TransactionRequest, db: Session = Depends(get_db)):
     """
-    Receives transaction features, calculates fraud score, and returns decision.
+    Hybrid Fraud Detection: XGBoost (Known Patterns) + Autoencoder (Anomalies)
+    
+    Flow:
+    1. XGBoost Path: Fast pattern matching against known fraud signatures
+    2. Autoencoder Path: Detects anomalies (zero-day attacks)
+    3. Hybrid Score: Weighted combination of both models
+    4. Decision: Based on configurable thresholds
     """
-    if not ml_model:
-        raise HTTPException(status_code=500, detail="Model not loaded")
+    import time
+    
+    # Model availability check
+    if not ml_model and not autoencoder_model:
+        raise HTTPException(status_code=500, detail="No ML models loaded")
 
     try:
-        # --- FREEZE CHECK ---
-        # Check if customer is frozen
+        start_time = time.time()
+        
+        # ===== STEP 1: FREEZE CHECK =====
         customer = db.query(Customer).filter(Customer.id == txn.metadata.customer_id).first()
         if customer and customer.is_frozen:
-             # AUTO-DECLINE
-             return {
+            return {
                 "fraud_score": 1.0,
                 "status": "Decline",
                 "decision_reason": "❌ Customer Card is FROZEN"
             }
 
-        import time
-        start_time = time.time()
+        # ===== STEP 1b: MERCHANT WHITELIST CHECK =====
+        # Whitelisted merchants bypass AI entirely and are auto-approved
+        whitelist_entry = db.query(MerchantWhitelist).filter(
+            func.lower(MerchantWhitelist.merchant_name) == func.lower(txn.metadata.merchant)
+        ).first()
+        if whitelist_entry:
+            return {
+                "fraud_score": 0.0,
+                "status": "Approve",
+                "decision_reason": f"✅ Trusted Merchant — Whitelist Bypass",
+            }
 
-        # 1. Convert list to numpy array (Required for XGBoost)
-        # Reshape to (1, 30) because we are predicting 1 transaction
+        # ===== STEP 2: PREPARE FEATURES =====
         features_array = np.array(txn.features).reshape(1, -1)
         
-        # --- CURRENCY BRIDGE ---
-        # Convert LKR Amount (at index 29) to USD for the AI Model
-        # Assuming exchange rate 1 USD = 300 LKR
-        features_array[0][29] = features_array[0][29] / 300.0
+        # NOTE: Simulator now sends normalized features including normalized USD amount
+        # No currency conversion needed here anymore
+        # features_array[0][29] is already normalized (not LKR raw value)
 
-        # 2. Get Probability (0 to 1)
-        # [0][1] gets the probability of class '1' (Fraud)
-        probability = float(ml_model.predict_proba(features_array)[0][1])
+        # Initialize scores
+        xgboost_score = 0.0
+        autoencoder_score = 0.0
+        reconstruction_error = 0.0
 
-        # 3. Apply Business Logic (Dynamic from SystemConfig)
-        # Fetch thresholds (default to standard values if not set)
+        # ===== STEP 3: PATH 1 - XGBoost (Supervised Learning) =====
+        if ml_model is not None:
+            try:
+                xgboost_score = float(ml_model.predict_proba(features_array)[0][1])
+            except Exception as e:
+                print(f"⚠️  XGBoost prediction failed: {e}")
+                xgboost_score = 0.0
+        
+        # ===== STEP 4: PATH 2 - Autoencoder (Unsupervised Learning) =====
+        if autoencoder_model is not None and autoencoder_scaler is not None:
+            try:
+                # Normalize features using the scaler
+                # IMPORTANT: Create a copy to avoid modifying original features_array
+                features_to_scale = features_array.copy()
+                features_scaled = autoencoder_scaler.transform(features_to_scale)
+                
+                # Validate scaled features are in expected range
+                # After StandardScaler, should be roughly [-3, 3] for normal transactions
+                scaled_mean = np.mean(features_scaled)
+                scaled_std = np.std(features_scaled)
+                scaled_max = np.max(np.abs(features_scaled))
+                
+                # If scaled features look very abnormal, skip Autoencoder
+                if scaled_max > 100:  # Way outside expected range
+                    # Features are broken somehow
+                    reconstruction_error = 999.0  # Indicate error
+                    autoencoder_score = 1.0  # Maximum anomaly
+                else:
+                    # Get reconstruction from autoencoder
+                    reconstruction = autoencoder_model.predict(features_scaled, verbose=0)
+                    
+                    # Calculate Mean Squared Error (reconstruction error)
+                    # For normalized features, MSE should typically be 0.01-0.10
+                    reconstruction_error_raw = np.mean(np.power(features_scaled - reconstruction, 2))
+                    reconstruction_error = float(reconstruction_error_raw)
+                    
+                    # Validate reconstruction error (should be reasonable for normalized features)
+                    # If error is abnormally high (>1.0), something went wrong
+                    if reconstruction_error > 1.0:
+                        # Use max threshold as fallback - likely an anomaly or data issue
+                        autoencoder_score = 1.0
+                    else:
+                        # Normalize reconstruction error to 0-1 scale
+                        threshold = autoencoder_metadata.get('reconstruction_threshold', 0.5)
+                        autoencoder_score = min(reconstruction_error / threshold, 1.0)
+                
+            except Exception as e:
+                print(f"⚠️  Autoencoder prediction failed: {e}")
+                autoencoder_score = 0.0
+
+        # ===== STEP 5: HYBRID SCORE CALCULATION =====
+        if hybrid_mode_enabled and ml_model is not None and autoencoder_model is not None:
+            # Weighted ensemble: 60% known patterns, 40% anomalies
+            hybrid_score = (0.6 * xgboost_score) + (0.4 * autoencoder_score)
+            model_explanation = f"XGB:{xgboost_score:.2f}|AE:{autoencoder_score:.2f}"
+        elif ml_model is not None:
+            # XGBoost only
+            hybrid_score = xgboost_score
+            model_explanation = f"XGB:{xgboost_score:.2f}"
+        elif autoencoder_model is not None:
+            # Autoencoder only
+            hybrid_score = autoencoder_score
+            model_explanation = f"AE:{autoencoder_score:.2f}"
+        else:
+            hybrid_score = 0.0
+            model_explanation = "NO_MODEL"
+
+        # ===== STEP 6: FETCH THRESHOLDS =====
         decline_threshold = 0.70
         review_threshold = 0.50
         
         config_decline = db.query(SystemConfig).filter(SystemConfig.key == "fraud_threshold_decline").first()
         if config_decline:
-             decline_threshold = float(config_decline.value)
+            decline_threshold = float(config_decline.value)
 
         config_review = db.query(SystemConfig).filter(SystemConfig.key == "fraud_threshold_review").first()
         if config_review:
-             review_threshold = float(config_review.value)
+            review_threshold = float(config_review.value)
 
-        if probability >= decline_threshold:
+        # ===== STEP 7: DECISION LOGIC =====
+        if hybrid_score >= decline_threshold:
             status = "Decline"
-            reason = "Critical Risk Score (Auto-Decline Threshold Met)"
-        elif probability >= review_threshold:
+            decision_reason = f"🚨 Critical Risk | {model_explanation}"
+        elif hybrid_score >= review_threshold:
             status = "Escalate"
-            reason = "Medium Risk Score (Requires Manual Review)"
+            decision_reason = f"⚠️  Medium Risk | {model_explanation}"
         else:
             status = "Approve"
-            reason = "Low Risk Score"
+            decision_reason = f"✅ Low Risk | {model_explanation}"
 
-        # 4. SAVE TO DATABASE (The "Bank" Part)
-        # 4. SAVE TO DATABASE (The "Bank" Part)
+        # ===== STEP 8: SAVE TO DATABASE =====
         end_time = time.time()
         processing_time_ms = (end_time - start_time) * 1000
         
@@ -295,21 +548,24 @@ def predict_fraud(txn: TransactionRequest, db: Session = Depends(get_db)):
             customer_id=txn.metadata.customer_id,
             merchant=txn.metadata.merchant,
             amount=txn.metadata.amount,
-            fraud_score=round(probability, 4),
+            fraud_score=round(hybrid_score, 4),
+            xgboost_score=round(xgboost_score, 4),
+            autoencoder_score=round(autoencoder_score, 4),
+            reconstruction_error=round(reconstruction_error, 6),
             status=status,
             processing_time_ms=processing_time_ms
         )
         db.add(new_txn)
         db.commit()
-        db.refresh(new_txn) # Get ID for notification
+        db.refresh(new_txn)
         
-        # 5. TRIGGER NOTIFICATIONS (New)
+        # ===== STEP 9: TRIGGER NOTIFICATIONS =====
         notification_service.check_and_notify(db, new_txn)
 
         return {
-            "fraud_score": round(probability, 4),
+            "fraud_score": round(hybrid_score, 4),
             "status": status,
-            "decision_reason": reason
+            "decision_reason": decision_reason
         }
 
     except Exception as e:

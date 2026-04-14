@@ -37,22 +37,33 @@ def generate_transaction(customers):
     else:
         cust_id = 1 # Fallback ID
 
-    # 2. Generate Random Features (V1-V28, Time, Amount)
+    # 2. Generate Random Features (V1-V28, Time, Amount in USD)
+    # Features 0-27: PCA features (already normalized -2.0 to 2.0)
+    # Feature 28: Time feature
+    # Feature 29: Amount (MUST be in normalized range for Autoencoder!)
     features = [random.uniform(-2.0, 2.0) for _ in range(30)]
     
-    # 3. Inject Fraud (10% chance)
+    # 3. Generate Amount - IMPORTANT: Must be normalized!
+    # Typical transaction: 500-15,000 LKR = 1.67 to 50 USD
+    # For Autoencoder compatibility, keep in range -3 to +3 (like other features)
+    # Use normalized amount: (amount_usd - mean) / std ≈ 0 to 2
+    amount_lkr = round(random.uniform(500.0, 15000.0), 2)
+    amount_usd = amount_lkr / 300.0  # Convert to USD (1.67 to 50 USD)
+    # Normalize to -2 to +2 range (median ~16 USD maps to ~0)
+    normalized_amount = (amount_usd - 25.0) / 20.0  # Centers around typical transaction
+    features[29] = normalized_amount
+    
+    # 4. Inject Fraud (10% chance)
     is_fraud = random.random() < 0.10
     if is_fraud: 
         logger.warning("GENERATING ATTACK TRANSACTION...")
-        features[0] = 50.0  # Anomaly in V1
-        features[4] = -50.0 # Anomaly in V4
-        # Amount in LKR (e.g. 30,000 LKR)
-        amount_lkr = 30000.0 
-        features[29] = amount_lkr
-    else:
-        # Normal amount in LKR (e.g. 500 to 10,000 LKR)
-        amount_lkr = round(random.uniform(500.0, 15000.0), 2)
-        features[29] = amount_lkr
+        features[0] = 50.0    # Anomaly in V1 (PCA component)
+        features[4] = -50.0   # Anomaly in V4 (PCA component)
+        # For fraud, use large unusual amount (30,000 LKR)
+        amount_lkr = 30000.0
+        amount_usd = 30000.0 / 300.0  # 100 USD
+        normalized_amount = (amount_usd - 25.0) / 20.0  # ≈ 3.75 (outside normal range)
+        features[29] = normalized_amount
 
     # 4. Construct Payload with Metadata
     txn_payload = {
@@ -73,16 +84,16 @@ def generate_transaction(customers):
 
 def run_simulation():
     print("="*60)
-    print("🚀  STARTING BANK TRANSACTION SIMULATOR (LKR SUPPORT)")
-    print(f"📡  Target: {API_URL}")
+    print("[*] STARTING BANK TRANSACTION SIMULATOR (LKR SUPPORT)")
+    print(f"[*] Target: {API_URL}")
     print("="*60 + "\n")
 
-    print("🔄  Fetching Real Customers from Database...")
+    print("[*] Fetching Real Customers from Database...")
     customers = get_real_customers()
     if customers:
-        print(f"✅  Loaded {len(customers)} Customers.")
+        print(f"[OK] Loaded {len(customers)} Customers.")
     else:
-        print("⚠️  No customers found in DB. Using Guest ID 1.")
+        print("[!] No customers found in DB. Using Guest ID 1.")
         customers = []
 
     transaction_count = 1
@@ -103,13 +114,13 @@ def run_simulation():
                 
                 # Color code the output
                 if status == "Decline":
-                    icon = "❌"
+                    icon = "[X]"
                     color = "\033[91m" # Red
                 elif status == "Escalate":
-                    icon = "⚠️"
+                    icon = "[!]"
                     color = "\033[93m" # Yellow
                 else:
-                    icon = "✅"
+                    icon = "[OK]"
                     color = "\033[92m" # Green
                 
                 reset = "\033[0m"
@@ -117,7 +128,7 @@ def run_simulation():
                 meta = txn_data['metadata']
                 print(f"Txn #{transaction_count:04d} | Cust {meta['customer_id']} | LKR {meta['amount']:<8} | Score: {score:.4f} | {color}{icon} {status.upper()}{reset}")
             else:
-                print(f"❌ Error: {response.text}")
+                print(f"[X] Error: {response.text}")
 
             transaction_count += 1
             
@@ -125,10 +136,10 @@ def run_simulation():
             time.sleep(random.uniform(2.0, 5.0))
 
         except KeyboardInterrupt:
-            print("\n🛑 Simulation Stopped.")
+            print("\n[*] Simulation Stopped.")
             break
         except Exception as e:
-            print(f"❌ Connection Error: {e}")
+            print(f"[X] Connection Error: {e}")
             time.sleep(2)
 
 if __name__ == "__main__":

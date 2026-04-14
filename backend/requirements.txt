@@ -17,3 +17,6 @@ numpy
 pyotp
 qrcode
 emails
+tensorflow
+keras
+matplotlib
