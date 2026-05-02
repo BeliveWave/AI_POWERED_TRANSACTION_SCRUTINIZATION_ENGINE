@@ -86,9 +86,9 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex w-full bg-white relative">
+    <div className="min-h-screen flex w-full bg-white dark:bg-slate-900 relative">
       {/* Left Side - Image & Branding */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-blue-900">
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-blue-900 dark:bg-slate-950">
         <div className="absolute inset-0 bg-blue-900/20 mix-blend-multiply z-10" />
         <div className="absolute inset-0 bg-gradient-to-t from-blue-900 via-transparent to-transparent z-10" />
         <img 
@@ -117,11 +117,11 @@ const Login = () => {
       </div>
 
       {/* Right Side - Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white dark:bg-slate-900 transition-colors">
         <div className="w-full max-w-md space-y-8">
           <div className="text-center lg:text-left">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h2>
-            <p className="text-gray-500">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Welcome Back</h2>
+            <p className="text-gray-500 dark:text-slate-400">
               Please enter your details to sign in.
             </p>
           </div>
@@ -130,16 +130,16 @@ const Login = () => {
               <form onSubmit={handleSubmit} className="space-y-6 mt-8">
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5 ml-1">Email</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 ml-1">Email</label>
                     <div className="relative group">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                        <Mail className="h-5 w-5 text-gray-400 dark:text-slate-500 group-focus-within:text-amber-500 transition-colors" />
                       </div>
                       <input
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition duration-200 ease-in-out sm:text-sm"
+                        className="block w-full pl-10 pr-3 py-3 border border-gray-200 dark:border-slate-700 rounded-xl leading-5 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition duration-200 ease-in-out sm:text-sm"
                         placeholder="Enter your email"
                         required
                       />
@@ -147,22 +147,22 @@ const Login = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5 ml-1">Password</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 ml-1">Password</label>
                     <div className="relative group">
                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                        <Lock className="h-5 w-5 text-gray-400 dark:text-slate-500 group-focus-within:text-amber-500 transition-colors" />
                       </div>
                       <input
                         type={showPassword ? 'text' : 'password'}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition duration-200 ease-in-out sm:text-sm"
+                        className="block w-full pl-10 pr-10 py-3 border border-gray-200 dark:border-slate-700 rounded-xl leading-5 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition duration-200 ease-in-out sm:text-sm"
                         placeholder="Enter your password"
                         required
                       />
                       <button
                         type="button"
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors focus:outline-none"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors focus:outline-none"
                         onClick={() => setShowPassword(!showPassword)}
                       >
                         {showPassword ? (
@@ -181,15 +181,15 @@ const Login = () => {
                       id="remember-me"
                       name="remember-me"
                       type="checkbox"
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      className="h-4 w-4 text-amber-500 focus:ring-amber-500 border-gray-300 dark:border-slate-600 rounded bg-transparent"
                     />
-                    <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-600">
+                    <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-600 dark:text-slate-400">
                       Remember me
                     </label>
                   </div>
 
                   <div className="text-sm">
-                    <button type="button" onClick={() => setShowForgotPassword(true)} className="font-medium text-blue-600 hover:text-blue-500">
+                    <button type="button" onClick={() => setShowForgotPassword(true)} className="font-medium text-amber-600 dark:text-amber-500 hover:text-amber-500 dark:hover:text-amber-400 transition-colors">
                       Forgot password?
                     </button>
                   </div>
@@ -199,15 +199,15 @@ const Login = () => {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:-translate-y-0.5"
+                    className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-blue-600 dark:bg-amber-600 hover:bg-blue-700 dark:hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 dark:focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:-translate-y-0.5"
                   >
                     {loading ? 'Signing In...' : 'Sign In'}
                   </button>
                   
                   <div className="text-center">
-                     <p className="text-sm text-gray-500">
+                     <p className="text-sm text-gray-500 dark:text-slate-400">
                         Don't have an account?{' '}
-                        <Link to="/register" className="text-blue-600 hover:text-blue-500 transition-colors font-semibold">
+                        <Link to="/register" className="text-blue-600 dark:text-amber-500 hover:text-blue-500 dark:hover:text-amber-400 transition-colors font-semibold">
                             Sign up now
                         </Link>
                     </p>
@@ -218,11 +218,11 @@ const Login = () => {
              /* 2FA Form */
              <form onSubmit={handleSubmit} className="space-y-6 mt-8">
                  <div className="text-center mb-6">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 text-blue-600 mb-4">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 dark:bg-amber-900/30 text-blue-600 dark:text-amber-500 mb-4">
                         <Lock size={32} />
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900">Two-Factor Authentication</h3>
-                    <p className="text-sm text-gray-500 mt-2">Enter the 6-digit code from your authenticator app.</p>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">Two-Factor Authentication</h3>
+                    <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">Enter the 6-digit code from your authenticator app.</p>
                  </div>
 
                  <div>
@@ -230,7 +230,7 @@ const Login = () => {
                         type="text"
                         value={otpCode}
                         onChange={(e) => setOtpCode(e.target.value)}
-                        className="block w-full text-center text-2xl tracking-widest py-3 border border-gray-200 rounded-xl leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition duration-200 ease-in-out"
+                        className="block w-full text-center text-2xl tracking-widest py-3 border border-gray-200 dark:border-slate-700 rounded-xl leading-5 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition duration-200 ease-in-out"
                         placeholder="000000"
                         maxLength={6}
                         required
@@ -241,7 +241,7 @@ const Login = () => {
                  <button
                     type="submit"
                     disabled={loading}
-                    className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none disabled:opacity-50"
+                    className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-blue-600 dark:bg-amber-600 hover:bg-blue-700 dark:hover:bg-amber-700 focus:outline-none disabled:opacity-50"
                   >
                     {loading ? 'Verifying...' : 'Verify Code'}
                   </button>
@@ -249,7 +249,7 @@ const Login = () => {
                   <button 
                     type="button" 
                     onClick={() => setRequires2FA(false)}
-                    className="w-full text-center text-sm text-gray-500 hover:text-gray-700"
+                    className="w-full text-center text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300"
                   >
                       Back to Login
                   </button>
@@ -260,28 +260,28 @@ const Login = () => {
 
       {/* Forgot Password Modal */}
       {showForgotPassword && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 relative animate-fade-in-up">
+          <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-md w-full p-6 relative animate-fade-in-up border border-transparent dark:border-slate-700">
                   <button 
                     onClick={() => { setShowForgotPassword(false); setOtpStep(1); }}
-                    className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+                    className="absolute top-4 right-4 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-white transition-colors"
                   >
                       <X size={20} />
                   </button>
                   
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Reset Password</h3>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Reset Password</h3>
                   
                   {otpStep === 1 ? (
                       /* Step 1: Email Input */
                       <form onSubmit={handleSendOtp} className="space-y-4">
-                          <p className="text-gray-500 text-sm mb-4">Enter your email address to receive a 6-digit verification code.</p>
+                          <p className="text-gray-500 dark:text-slate-400 text-sm mb-4">Enter your email address to receive a 6-digit verification code.</p>
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1.5 ml-1">Email</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 ml-1">Email</label>
                             <input
                                 type="email"
                                 value={resetEmail}
                                 onChange={(e) => setResetEmail(e.target.value)}
-                                className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-transparent dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors"
                                 placeholder="Enter your email"
                                 required
                             />
@@ -291,15 +291,15 @@ const Login = () => {
                   ) : (
                       /* Step 2: OTP & New Password */
                       <form onSubmit={handleResetPassword} className="space-y-4">
-                           <p className="text-gray-500 text-sm mb-4">Enter the code sent to {resetEmail} and your new password.</p>
+                           <p className="text-gray-500 dark:text-slate-400 text-sm mb-4">Enter the code sent to {resetEmail} and your new password.</p>
                            
                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">OTP Code</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">OTP Code</label>
                                 <input
                                     type="text"
                                     value={resetOtp}
                                     onChange={(e) => setResetOtp(e.target.value)}
-                                    className="block w-full text-center text-xl tracking-widest py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="block w-full text-center text-xl tracking-widest py-2 border border-gray-300 dark:border-slate-600 bg-transparent dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors"
                                     placeholder="000000"
                                     maxLength={6}
                                     required
@@ -307,24 +307,24 @@ const Login = () => {
                            </div>
 
                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">New Password</label>
                                 <input
                                     type="password"
                                     value={newPassword}
                                     onChange={(e) => setNewPassword(e.target.value)}
-                                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-transparent dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors"
                                     required
                                     minLength={12}
                                 />
                            </div>
 
                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Confirm Password</label>
                                 <input
                                     type="password"
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="block w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-transparent dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors"
                                     required
                                     minLength={12}
                                 />
@@ -334,7 +334,7 @@ const Login = () => {
                            <button 
                                 type="button"
                                 onClick={() => setOtpStep(1)}
-                                className="w-full text-center text-sm text-gray-500 hover:text-gray-700 mt-2"
+                                className="w-full text-center text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300 mt-2 transition-colors"
                             >
                                 Back
                             </button>

@@ -9,27 +9,33 @@ import Configuration from "./pages/Configuration.jsx";
 import Reports from "./pages/Reports.jsx";
 import SystemAdmin from "./pages/SystemAdmin.jsx";
 import ProfileSettings from "./pages/ProfileSettings.jsx";
+import Help from "./pages/Help.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
+import Landing from "./pages/Landing.jsx";
 import { AuthProvider, useAuth } from "./hooks/useAuth.jsx";
 import TopNav from "./components/Layout/TopNav.jsx";
 import SessionTimeout from "./components/Common/SessionTimeout.jsx";
+import { ThemeProvider, useTheme } from "./hooks/useTheme.jsx";
 
 const AppContent = () => {
   const { isLoggedIn, logout } = useAuth();
+  const { theme } = useTheme();
 
   if (!isLoggedIn) {
     return (
       <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="*" element={<Login />} />
+        <Route path="*" element={<Landing />} />
       </Routes>
     );
   }
 
   return (
     <>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-[#0B1120] transition-colors duration-300">
         <TopNav />
         <main className="p-6">
           <Routes>
@@ -41,22 +47,25 @@ const AppContent = () => {
             <Route path="/reports" element={<Reports />} />
             <Route path="/system-admin" element={<SystemAdmin />} />
             <Route path="/profile" element={<ProfileSettings />} />
+            <Route path="/help" element={<Help />} />
           </Routes>
         </main>
       </div>
       <SessionTimeout isLoggedIn={isLoggedIn} onLogout={logout} />
+      <ToastContainer position="top-right" autoClose={3000} theme={theme === 'dark' ? 'dark' : 'colored'} />
     </>
   );
 };
 
 const App = () => {
   return (
-    <AuthProvider>
-      <Router>
-        <AppContent />
-        <ToastContainer position="top-right" autoClose={3000} />
-      </Router>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 };
 
