@@ -67,34 +67,34 @@ const SessionTimeout = () => {
     >
       <div className="text-center py-4">
         <div className="flex justify-center mb-4">
-          <AlertTriangle className="w-16 h-16 text-yellow-500" />
+          <AlertTriangle className="w-16 h-16 text-yellow-500 dark:text-amber-500" />
         </div>
         
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
           Your session is about to expire
         </h3>
         
-        <p className="text-gray-600 mb-4">
+        <p className="text-gray-600 dark:text-slate-300 mb-4">
           You will be automatically logged out in{' '}
-          <span className="font-bold text-red-600">
+          <span className="font-bold text-red-600 dark:text-red-400">
             {minutes}:{seconds.toString().padStart(2, '0')}
           </span>
         </p>
         
-        <p className="text-sm text-gray-500 mb-6">
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">
           Click "Continue Session" to stay logged in, or you will be logged out due to inactivity.
         </p>
         
         <div className="flex gap-4 justify-center">
           <button
             onClick={handleContinueSession}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+            className="px-6 py-2 bg-blue-600 dark:bg-amber-600 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-amber-700 font-medium transition-colors"
           >
             Continue Session
           </button>
           <button
             onClick={handleLogoutNow}
-            className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+            className="px-6 py-2 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-600 font-medium transition-colors"
           >
             Logout Now
           </button>

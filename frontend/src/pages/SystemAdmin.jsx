@@ -8,10 +8,10 @@ import { toast } from 'react-toastify';
 
 // ── Status config ──────────────────────────────────────────────────────────
 const STATUS = {
-  healthy:  { dot: 'bg-emerald-500', ring: 'ring-emerald-200', card: 'border-emerald-100', badge: 'bg-emerald-50 text-emerald-700', icon: CheckCircle,   label: 'Healthy'  },
-  warning:  { dot: 'bg-amber-400',   ring: 'ring-amber-200',   card: 'border-amber-100',   badge: 'bg-amber-50 text-amber-700',    icon: AlertTriangle, label: 'Warning'  },
-  critical: { dot: 'bg-red-500',     ring: 'ring-red-200',     card: 'border-red-100',     badge: 'bg-red-50 text-red-700',        icon: XCircle,       label: 'Critical' },
-  unknown:  { dot: 'bg-gray-300',    ring: 'ring-gray-200',    card: 'border-gray-100',    badge: 'bg-gray-100 text-gray-500',     icon: Activity,      label: 'Unknown'  },
+  healthy:  { dot: 'bg-emerald-500', ring: 'ring-emerald-200 dark:ring-emerald-900', card: 'border-emerald-100 dark:border-emerald-800', badge: 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400', icon: CheckCircle,   label: 'Healthy'  },
+  warning:  { dot: 'bg-amber-400',   ring: 'ring-amber-200 dark:ring-amber-900',   card: 'border-amber-100 dark:border-amber-800',   badge: 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',    icon: AlertTriangle, label: 'Warning'  },
+  critical: { dot: 'bg-red-500',     ring: 'ring-red-200 dark:ring-red-900',     card: 'border-red-100 dark:border-red-800',     badge: 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400',        icon: XCircle,       label: 'Critical' },
+  unknown:  { dot: 'bg-gray-300 dark:bg-slate-500',    ring: 'ring-gray-200 dark:ring-slate-700',    card: 'border-gray-100 dark:border-slate-700',    badge: 'bg-gray-100 dark:bg-slate-800/80 text-gray-500 dark:text-slate-400',     icon: Activity,      label: 'Unknown'  },
 };
 
 const SVC_ICON = {
@@ -22,15 +22,15 @@ const SVC_ICON = {
 };
 
 // ── Section card ───────────────────────────────────────────────────────────
-const Section = ({ icon: Icon, iconColor = 'text-blue-600', iconBg = 'bg-blue-100', title, description, accent = 'border-l-blue-500', children }) => (
-  <div className={`bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden border-l-4 ${accent}`}>
-    <div className="flex items-center gap-4 px-8 py-5 border-b border-gray-100 bg-gray-50/60">
+const Section = ({ icon: Icon, iconColor = 'text-blue-600 dark:text-blue-400', iconBg = 'bg-blue-100 dark:bg-blue-900/30', title, description, accent = 'border-l-blue-500', children }) => (
+  <div className={`bg-white dark:bg-slate-800/80 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden border-l-4 ${accent} transition-colors backdrop-blur-sm`}>
+    <div className="flex items-center gap-4 px-8 py-5 border-b border-gray-100 dark:border-slate-700 bg-gray-50/60 dark:bg-slate-800/60">
       <div className={`w-11 h-11 ${iconBg} rounded-xl flex items-center justify-center shrink-0`}>
         <Icon size={22} className={iconColor} />
       </div>
       <div>
-        <h2 className="text-lg font-bold text-gray-900">{title}</h2>
-        {description && <p className="text-sm text-gray-500 mt-0.5">{description}</p>}
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white">{title}</h2>
+        {description && <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">{description}</p>}
       </div>
     </div>
     <div className="px-8 py-7">{children}</div>
@@ -43,11 +43,11 @@ const ThresholdSlider = ({ label, hint, value, color, onChange }) => {
   return (
     <div className="space-y-3">
       <div className="flex justify-between items-center">
-        <label className="text-base font-semibold text-gray-800">{label}</label>
-        <span className={`text-2xl font-black ${color === 'red' ? 'text-red-500' : 'text-amber-500'}`}>{pct}%</span>
+        <label className="text-base font-semibold text-gray-800 dark:text-slate-200">{label}</label>
+        <span className={`text-2xl font-black ${color === 'red' ? 'text-red-500 dark:text-red-400' : 'text-amber-500'}`}>{pct}%</span>
       </div>
       <div className="relative h-4 flex items-center">
-        <div className={`absolute w-full h-3 rounded-full ${color === 'red' ? 'bg-red-100' : 'bg-amber-100'}`} />
+        <div className={`absolute w-full h-3 rounded-full ${color === 'red' ? 'bg-red-100 dark:bg-red-900/30' : 'bg-amber-100 dark:bg-amber-900/30'}`} />
         <input
           type="range" min="0" max="100" value={pct}
           onChange={(e) => onChange(Number(e.target.value) / 100)}
@@ -56,7 +56,7 @@ const ThresholdSlider = ({ label, hint, value, color, onChange }) => {
           }`}
         />
       </div>
-      <p className="text-sm text-gray-500">{hint}</p>
+      <p className="text-sm text-gray-500 dark:text-slate-400">{hint}</p>
     </div>
   );
 };
@@ -152,8 +152,8 @@ const SystemAdmin = () => {
       {/* ── Page Header ── */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">System Administration</h1>
-          <p className="text-gray-500 mt-2 text-base">Infrastructure health · AI thresholds · External integrations</p>
+          <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">System Administration</h1>
+          <p className="text-gray-500 dark:text-slate-400 mt-2 text-base">Infrastructure health · AI thresholds · External integrations</p>
         </div>
         <div className={`flex items-center gap-2.5 px-5 py-2.5 rounded-full border-2 text-sm font-semibold shrink-0 ${overallS.badge} border-current`}>
           <span className={`w-2.5 h-2.5 rounded-full ${overallS.dot} ${overall === 'healthy' ? 'animate-pulse' : ''}`} />
@@ -167,18 +167,18 @@ const SystemAdmin = () => {
         accent="border-l-blue-500">
 
         <div className="flex items-center justify-between mb-6">
-          <p className="text-sm text-gray-400 flex items-center gap-2">
+          <p className="text-sm text-gray-400 dark:text-slate-500 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
             {lastChecked ? `Last checked ${lastChecked.toLocaleTimeString()}` : 'Checking…'}
           </p>
-          <button onClick={fetchHealth} className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 font-semibold transition-colors">
+          <button onClick={fetchHealth} className="flex items-center gap-1.5 text-sm text-blue-600 dark:text-amber-500 hover:text-blue-800 dark:hover:text-amber-400 font-semibold transition-colors">
             <RefreshCw size={14} /> Refresh now
           </button>
         </div>
 
         {healthLoading ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-            {[...Array(4)].map((_, i) => <div key={i} className="h-44 bg-gray-100 rounded-2xl animate-pulse" />)}
+            {[...Array(4)].map((_, i) => <div key={i} className="h-44 bg-gray-100 dark:bg-slate-700/50 rounded-2xl animate-pulse" />)}
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
@@ -188,24 +188,24 @@ const SystemAdmin = () => {
               const SBadge = s.icon;
               return (
                 <div key={svc.name}
-                  className={`relative p-6 border-2 ${s.card} rounded-2xl bg-white hover:shadow-lg transition-all group cursor-default`}>
+                  className={`relative p-6 border-2 ${s.card} rounded-2xl bg-white dark:bg-slate-800 hover:shadow-lg transition-all group cursor-default`}>
                   {/* Pulsing status dot */}
                   <span className={`absolute top-4 right-4 w-3 h-3 rounded-full ${s.dot} ring-4 ${s.ring} ${svc.status === 'healthy' ? 'animate-pulse' : ''}`} />
 
-                  <SIcon size={34} className="text-gray-200 mb-4 group-hover:text-gray-300 transition-colors" />
-                  <p className="text-base font-bold text-gray-900 mb-2 leading-tight">{svc.name}</p>
+                  <SIcon size={34} className="text-gray-200 dark:text-slate-600 mb-4 group-hover:text-gray-300 dark:group-hover:text-slate-500 transition-colors" />
+                  <p className="text-base font-bold text-gray-900 dark:text-white mb-2 leading-tight">{svc.name}</p>
 
                   <div className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg ${s.badge}`}>
                     <SBadge size={11} />{s.label}
                   </div>
 
                   {svc.latency_ms != null
-                    ? <p className="text-4xl font-black text-gray-800 mt-5 leading-none">
-                        {svc.latency_ms}<span className="text-sm font-normal text-gray-400 ml-1">ms</span>
+                    ? <p className="text-4xl font-black text-gray-800 dark:text-slate-200 mt-5 leading-none">
+                        {svc.latency_ms}<span className="text-sm font-normal text-gray-400 dark:text-slate-500 ml-1">ms</span>
                       </p>
-                    : <p className="text-3xl font-black text-gray-200 mt-5">—</p>
+                    : <p className="text-3xl font-black text-gray-200 dark:text-slate-600 mt-5">—</p>
                   }
-                  <p className="text-xs text-gray-400 mt-2 leading-relaxed">{svc.detail}</p>
+                  <p className="text-xs text-gray-400 dark:text-slate-500 mt-2 leading-relaxed">{svc.detail}</p>
                 </div>
               );
             })}
@@ -217,13 +217,13 @@ const SystemAdmin = () => {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
 
         {/* Thresholds */}
-        <Section icon={Shield} iconColor="text-red-600" iconBg="bg-red-100"
+        <Section icon={Shield} iconColor="text-red-600 dark:text-red-400" iconBg="bg-red-100 dark:bg-red-900/30"
           title="Global Fraud Thresholds"
           description="Master AI decision switch — takes effect on the very next transaction"
           accent="border-l-red-500">
 
           <div className="space-y-7">
-            <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-700 leading-relaxed">
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800 rounded-xl text-sm text-blue-700 dark:text-blue-400 leading-relaxed transition-colors">
               <strong>How it works:</strong> Every transaction gets a score 0–100%.
               Above <strong>Decline</strong> = auto-blocked. Between both = escalated to an analyst.
             </div>
@@ -240,14 +240,14 @@ const SystemAdmin = () => {
             />
 
             {reviewThreshold >= declineThreshold && (
-              <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+              <p className="text-sm text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3">
                 ⚠️ Review threshold must be strictly lower than Decline threshold.
               </p>
             )}
 
             <button onClick={saveThresholds}
               disabled={thresholdSaving || reviewThreshold >= declineThreshold}
-              className="w-full flex items-center justify-center gap-2 py-4 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-gray-700 disabled:opacity-50 transition-colors">
+              className="w-full flex items-center justify-center gap-2 py-4 bg-gray-900 dark:bg-slate-700 text-white rounded-xl text-sm font-bold hover:bg-gray-700 dark:hover:bg-slate-600 disabled:opacity-50 transition-colors">
               {thresholdSaving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
               {thresholdSaving ? 'Saving…' : 'Save Thresholds'}
             </button>
@@ -255,37 +255,37 @@ const SystemAdmin = () => {
         </Section>
 
         {/* Slack */}
-        <Section icon={Bell} iconColor="text-violet-600" iconBg="bg-violet-100"
+        <Section icon={Bell} iconColor="text-violet-600 dark:text-violet-400" iconBg="bg-violet-100 dark:bg-violet-900/30"
           title="Slack Webhook Integration"
           description="Automatically push critical alerts to your team's Slack channel"
           accent="border-l-violet-500">
 
           <div className="space-y-6">
-            <div className="p-4 bg-violet-50 border border-violet-100 rounded-xl text-sm text-violet-700 leading-relaxed">
+            <div className="p-4 bg-violet-50 dark:bg-violet-900/30 border border-violet-100 dark:border-violet-800 rounded-xl text-sm text-violet-700 dark:text-violet-400 leading-relaxed transition-colors">
               <strong>Trigger events:</strong> The backend posts to this URL when a transaction scores
               above 70% (high risk). Alerts fire silently — no dashboard monitoring needed.
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Webhook URL</label>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">Webhook URL</label>
               <input type="text" value={slackWebhook} onChange={e => setSlackWebhook(e.target.value)}
                 placeholder="https://hooks.slack.com/services/T.../B.../..."
-                className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:border-violet-400 transition-colors bg-gray-50"
+                className="w-full px-4 py-3.5 border-2 border-gray-200 dark:border-slate-600 rounded-xl text-sm font-mono focus:outline-none focus:border-violet-400 dark:focus:border-violet-500 transition-colors bg-gray-50 dark:bg-slate-700 dark:text-white"
               />
-              <p className="text-xs text-gray-400 mt-2">
+              <p className="text-xs text-gray-400 dark:text-slate-500 mt-2">
                 Use your real Slack webhook (<strong>api.slack.com/apps</strong>) or a test URL from{' '}
-                <a href="https://webhook.site" target="_blank" rel="noreferrer" className="text-violet-600 underline font-medium">webhook.site</a>
+                <a href="https://webhook.site" target="_blank" rel="noreferrer" className="text-violet-600 dark:text-amber-500 underline font-medium">webhook.site</a>
               </p>
             </div>
 
             <div className="flex gap-3">
               <button onClick={saveWebhook} disabled={slackSaving}
-                className="flex-1 flex items-center justify-center gap-2 py-4 bg-violet-600 text-white rounded-xl text-sm font-bold hover:bg-violet-700 disabled:opacity-50 transition-colors">
+                className="flex-1 flex items-center justify-center gap-2 py-4 bg-violet-600 dark:bg-violet-700 text-white rounded-xl text-sm font-bold hover:bg-violet-700 dark:hover:bg-violet-600 disabled:opacity-50 transition-colors">
                 {slackSaving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
                 {slackSaving ? 'Saving…' : 'Save Webhook'}
               </button>
               <button onClick={testWebhook} disabled={slackTesting || !slackWebhook}
-                className="flex-1 flex items-center justify-center gap-2 py-4 border-2 border-violet-300 text-violet-700 rounded-xl text-sm font-bold hover:bg-violet-50 disabled:opacity-40 transition-colors">
+                className="flex-1 flex items-center justify-center gap-2 py-4 border-2 border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-400 rounded-xl text-sm font-bold hover:bg-violet-50 dark:hover:bg-violet-900/30 disabled:opacity-40 transition-colors">
                 {slackTesting ? <RefreshCw size={16} className="animate-spin" /> : <Bell size={16} />}
                 {slackTesting ? 'Sending…' : 'Test Alert'}
               </button>

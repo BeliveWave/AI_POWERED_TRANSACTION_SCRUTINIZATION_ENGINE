@@ -770,3 +770,23 @@ def get_fraud_trends(db: Session = Depends(get_db)):
         current_date += timedelta(days=1)
         
     return results
+
+class NewsletterSubscribeRequest(BaseModel):
+    email: str
+
+from app.utils.email_utils import send_welcome_email
+
+@app.post("/api/newsletter/subscribe")
+def subscribe_newsletter(data: NewsletterSubscribeRequest):
+    """
+    Subscribes a user to the newsletter and sends a welcome email.
+    """
+    try:
+        # In a real app, you would save the email to the database here
+        # e.g., db.add(NewsletterSubscriber(email=data.email))
+        
+        # Send the welcome email
+        send_welcome_email(data.email)
+        return {"message": "Successfully subscribed and welcome email sent"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process subscription: {str(e)}")

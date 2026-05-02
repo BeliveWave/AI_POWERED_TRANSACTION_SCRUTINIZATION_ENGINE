@@ -9,11 +9,11 @@ const getToken = () => localStorage.getItem('token') || '';
 
 // ── Reusable Tag chip ──────────────────────────────────────────────────────
 const Tag = ({ label, onRemove }) => (
-  <span className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-sm font-medium">
+  <span className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-slate-700/50 text-blue-700 dark:text-amber-500 border border-blue-200 dark:border-slate-600 rounded-full text-sm font-medium transition-colors">
     {label}
     <button
       onClick={onRemove}
-      className="text-blue-400 hover:text-red-500 transition-colors"
+      className="text-blue-400 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
       title="Remove"
     >
       <X size={15} />
@@ -23,14 +23,14 @@ const Tag = ({ label, onRemove }) => (
 
 // ── Section card wrapper ───────────────────────────────────────────────────
 const Section = ({ icon: Icon, title, description, children }) => (
-  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden border-l-4 border-l-blue-500">
-    <div className="flex items-center gap-4 px-8 py-5 border-b border-gray-100 bg-gray-50/60">
-      <div className="w-11 h-11 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
-        <Icon size={22} className="text-blue-600" />
+  <div className="bg-white dark:bg-slate-800/80 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden border-l-4 border-l-amber-500 transition-colors backdrop-blur-sm">
+    <div className="flex items-center gap-4 px-8 py-5 border-b border-gray-100 dark:border-slate-700 bg-gray-50/60 dark:bg-slate-800/60">
+      <div className="w-11 h-11 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center shrink-0">
+        <Icon size={22} className="text-amber-600 dark:text-amber-500" />
       </div>
       <div>
-        <h2 className="text-lg font-bold text-gray-900">{title}</h2>
-        <p className="text-sm text-gray-500 mt-0.5">{description}</p>
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white">{title}</h2>
+        <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">{description}</p>
       </div>
     </div>
     <div className="px-8 py-7">{children}</div>
@@ -43,9 +43,9 @@ const ThresholdSlider = ({ label, value, color, onChange }) => {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-base font-semibold text-gray-800">{label}</span>
+        <span className="text-base font-semibold text-gray-800 dark:text-slate-200">{label}</span>
         <span className={`text-2xl font-black ${
-            color === 'red' ? 'text-red-500' : 'text-amber-500'
+            color === 'red' ? 'text-red-500 dark:text-red-400' : 'text-amber-500'
           }`}>
           {pct}%
         </span>
@@ -56,11 +56,11 @@ const ThresholdSlider = ({ label, value, color, onChange }) => {
         max="100"
         value={pct}
         onChange={(e) => onChange(Number(e.target.value) / 100)}
-        className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${
-          color === 'red' ? 'accent-red-500' : 'accent-yellow-500'
+        className={`w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 dark:bg-slate-700 ${
+          color === 'red' ? 'accent-red-500' : 'accent-amber-500'
         }`}
       />
-      <div className="flex justify-between text-xs text-gray-400">
+      <div className="flex justify-between text-xs text-gray-400 dark:text-slate-500">
         <span>0%</span>
         <span>50%</span>
         <span>100%</span>
@@ -243,8 +243,8 @@ const Configuration = () => {
     <div className="space-y-8">
       {/* Page Header */}
       <div>
-        <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">Configuration</h1>
-        <p className="text-gray-500 mt-2 text-base">
+        <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">Configuration</h1>
+        <p className="text-gray-500 dark:text-slate-400 mt-2 text-base">
           Manage global fraud thresholds, trusted merchants, and blocked regions.
         </p>
       </div>
@@ -257,13 +257,13 @@ const Configuration = () => {
       >
         <div className="space-y-6">
           {/* Visual legend */}
-          <div className="flex gap-4 text-xs">
+          <div className="flex gap-4 text-xs dark:text-slate-300">
             <span className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-full bg-red-500 inline-block" />
               Decline (Critical Risk)
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-yellow-500 inline-block" />
+              <span className="w-3 h-3 rounded-full bg-amber-500 inline-block" />
               Escalate (Manual Review)
             </span>
             <span className="flex items-center gap-1.5">
@@ -287,7 +287,7 @@ const Configuration = () => {
 
           {/* Warning when values are invalid */}
           {reviewThreshold >= declineThreshold && (
-            <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            <p className="text-xs text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2">
               ⚠️ Review threshold must be lower than Decline threshold.
             </p>
           )}
@@ -296,7 +296,7 @@ const Configuration = () => {
           <button
             onClick={saveThresholds}
             disabled={thresholdSaving || reviewThreshold >= declineThreshold}
-            className="flex items-center gap-2 px-6 py-3.5 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-2 px-6 py-3.5 bg-gray-900 dark:bg-slate-700 text-white rounded-xl text-sm font-bold hover:bg-gray-700 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {thresholdSaving ? (
               <RefreshCw size={16} className="animate-spin" />
@@ -322,12 +322,12 @@ const Configuration = () => {
             onChange={(e) => setNewMerchant(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addMerchant()}
             placeholder='e.g. "Amazon"'
-            className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-400 bg-gray-50 transition-colors"
+            className="flex-1 px-4 py-3 border-2 border-gray-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:border-amber-400 dark:focus:border-amber-500 bg-gray-50 dark:bg-slate-700 dark:text-white transition-colors"
           />
           <button
             onClick={addMerchant}
             disabled={merchantLoading || !newMerchant.trim()}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="flex items-center gap-2 px-6 py-3 bg-blue-600 dark:bg-amber-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 dark:hover:bg-amber-700 disabled:opacity-50 transition-colors"
           >
             <Plus size={17} />
             Add
@@ -336,7 +336,7 @@ const Configuration = () => {
 
         {/* List */}
         {whitelist.length === 0 ? (
-          <p className="text-sm text-gray-400 italic">No merchants whitelisted yet.</p>
+          <p className="text-sm text-gray-400 dark:text-slate-500 italic">No merchants whitelisted yet.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {whitelist.map((m) => (
@@ -363,7 +363,7 @@ const Configuration = () => {
             value={newCountryCode}
             onChange={(e) => setNewCountryCode(e.target.value.slice(0, 3))}
             placeholder="Code (e.g. KP)"
-            className="w-28 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm uppercase focus:outline-none focus:border-blue-400 bg-gray-50 transition-colors"
+            className="w-28 px-4 py-3 border-2 border-gray-200 dark:border-slate-600 rounded-xl text-sm uppercase focus:outline-none focus:border-red-400 dark:focus:border-red-500 bg-gray-50 dark:bg-slate-700 dark:text-white transition-colors"
           />
           <input
             type="text"
@@ -371,7 +371,7 @@ const Configuration = () => {
             onChange={(e) => setNewCountryName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addCountry()}
             placeholder="Country name (e.g. North Korea)"
-            className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-400 bg-gray-50 transition-colors"
+            className="flex-1 px-4 py-3 border-2 border-gray-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:border-red-400 dark:focus:border-red-500 bg-gray-50 dark:bg-slate-700 dark:text-white transition-colors"
           />
           <button
             onClick={addCountry}
@@ -385,7 +385,7 @@ const Configuration = () => {
 
         {/* List */}
         {blacklist.length === 0 ? (
-          <p className="text-sm text-gray-400 italic">No countries blacklisted yet.</p>
+          <p className="text-sm text-gray-400 dark:text-slate-500 italic">No countries blacklisted yet.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {blacklist.map((c) => (
