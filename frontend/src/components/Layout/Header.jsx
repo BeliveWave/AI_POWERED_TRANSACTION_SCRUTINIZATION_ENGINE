@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, Bell, LogOut, Settings, HelpCircle, Menu, X, Shield } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth.jsx';
 
 const Header = ({ sidebarOpen, setSidebarOpen }) => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
@@ -23,7 +25,10 @@ const Header = ({ sidebarOpen, setSidebarOpen }) => {
               {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
             
-            <div className="flex items-center space-x-3">
+            <div 
+              onClick={() => navigate('/dashboard')}
+              className="flex items-center space-x-3 cursor-pointer hover:opacity-75 transition-opacity"
+            >
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <Shield size={20} className="text-white" />
               </div>

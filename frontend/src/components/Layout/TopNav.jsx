@@ -200,7 +200,10 @@ const TopNav = () => {
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             {/* Logo */}
-            <div className="flex items-center space-x-3">
+            <div 
+              onClick={() => navigate('/dashboard')}
+              className="flex items-center space-x-3 cursor-pointer hover:opacity-75 transition-opacity"
+            >
               <div className="w-8 h-8 bg-blue-600 dark:bg-amber-500 rounded-lg flex items-center justify-center">
                 <Shield size={20} className="text-white dark:text-slate-900" />
               </div>

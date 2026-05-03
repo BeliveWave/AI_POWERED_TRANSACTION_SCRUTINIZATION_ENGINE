@@ -14,6 +14,18 @@ const Transactions = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({ minAmt: '', maxAmt: '', status: 'All', date: 'today' });
   
+  // Dynamic threshold state
+  const [declineThreshold, setDeclineThreshold] = useState(0.70);
+  const [reviewThreshold, setReviewThreshold] = useState(0.50);
+  const [configLoading, setConfigLoading] = useState(true);
+  
+  // Dynamic status config state
+  const [statusConfig, setStatusConfig] = useState({
+    Approve: { label: 'Approve', color: 'bg-green-500', variant: 'success' },
+    Escalate: { label: 'Escalate', color: 'bg-yellow-500', variant: 'warning' },
+    Decline: { label: 'Decline', color: 'bg-red-500', variant: 'danger' }
+  });
+  
   // Fetch transactions with filters
   const fetchTransactions = async () => {
     setLoading(true);
@@ -37,6 +49,53 @@ const Transactions = () => {
     }
   };
 
+  // Fetch dynamic config from backend
+  React.useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/admin/config');
+        if (response.ok) {
+          const configs = await response.json();
+          
+          // Fetch thresholds
+          const declineConfig = configs.find(c => c.key === 'fraud_threshold_decline');
+          const reviewConfig = configs.find(c => c.key === 'fraud_threshold_review');
+          
+          if (declineConfig) setDeclineThreshold(parseFloat(declineConfig.value));
+          if (reviewConfig) setReviewThreshold(parseFloat(reviewConfig.value));
+          
+          // Fetch status labels and colors
+          const newStatusConfig = { ...statusConfig };
+          
+          const approveLabel = configs.find(c => c.key === 'fraud_status_approve_label');
+          const escalateLabel = configs.find(c => c.key === 'fraud_status_escalate_label');
+          const declineLabel = configs.find(c => c.key === 'fraud_status_decline_label');
+          
+          const approveColor = configs.find(c => c.key === 'fraud_status_approve_color');
+          const escalateColor = configs.find(c => c.key === 'fraud_status_escalate_color');
+          const declineColor = configs.find(c => c.key === 'fraud_status_decline_color');
+          
+          if (approveLabel) newStatusConfig.Approve.label = approveLabel.value;
+          if (escalateLabel) newStatusConfig.Escalate.label = escalateLabel.value;
+          if (declineLabel) newStatusConfig.Decline.label = declineLabel.value;
+          
+          if (approveColor) newStatusConfig.Approve.color = `bg-${approveColor.value}-500`;
+          if (escalateColor) newStatusConfig.Escalate.color = `bg-${escalateColor.value}-500`;
+          if (declineColor) newStatusConfig.Decline.color = `bg-${declineColor.value}-500`;
+          
+          setStatusConfig(newStatusConfig);
+        }
+      } catch (error) {
+        console.error('Error fetching config:', error);
+        // Falls back to defaults if fetch fails
+      } finally {
+        setConfigLoading(false);
+      }
+    };
+    
+    fetchConfig();
+  }, []);
+  
   React.useEffect(() => {
       // Debounce search
       const timer = setTimeout(() => {
@@ -62,9 +121,13 @@ const Transactions = () => {
   };
 
   const getScoreColor = (score) => {
-    if (score > 0.7) return 'bg-red-500';
-    if (score > 0.4) return 'bg-yellow-500';
-    return 'bg-green-500';
+    if (score > declineThreshold) return statusConfig.Decline.color;
+    if (score > reviewThreshold) return statusConfig.Escalate.color;
+    return statusConfig.Approve.color;
+  };
+  
+  const getBadgeVariant = (status) => {
+    return statusConfig[status]?.variant || 'success';
   };
 
   const exportCSV = () => {
@@ -136,9 +199,9 @@ const Transactions = () => {
             className="px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-colors"
           >
             <option value="All">All Decisions</option>
-            <option value="Approve">Approved</option>
-            <option value="Decline">Fraud (Decline)</option>
-            <option value="Escalate">Review (Escalate)</option>
+            <option value="Approve">{statusConfig.Approve.label}</option>
+            <option value="Decline">{statusConfig.Decline.label}</option>
+            <option value="Escalate">{statusConfig.Escalate.label}</option>
           </select>
           <div className="flex space-x-2">
             <Button variant="secondary" icon={RefreshCw} onClick={fetchTransactions}>
@@ -190,8 +253,8 @@ const Transactions = () => {
                         </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <Badge variant={txn.status === 'Decline' ? 'danger' : (txn.status === 'Escalate' ? 'warning' : 'success')}>
-                            {txn.status}
+                        <Badge variant={getBadgeVariant(txn.status)}>
+                            {statusConfig[txn.status]?.label || txn.status}
                         </Badge>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -261,8 +324,8 @@ const Transactions = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-slate-400">Decision</span>
-                  <Badge variant={selectedTransaction.status === 'Decline' ? 'danger' : (selectedTransaction.status === 'Escalate' ? 'warning' : 'success')}>
-                      {selectedTransaction.status}
+                  <Badge variant={getBadgeVariant(selectedTransaction.status)}>
+                      {statusConfig[selectedTransaction.status]?.label || selectedTransaction.status}
                   </Badge>
                 </div>
                 <div className="flex justify-between">
@@ -276,22 +339,22 @@ const Transactions = () => {
               {/* STATUS: REVIEW (Escalate) - Show Approve & Decline */}
               {selectedTransaction.status === 'Escalate' && (
                   <>
-                    <Button variant="success" className="flex-1" onClick={() => handleDecision('Approve')}>Approve</Button>
-                    <Button variant="danger" className="flex-1" onClick={() => handleDecision('Decline')}>Decline</Button>
+                    <Button variant="success" className="flex-1" onClick={() => handleDecision('Approve')}>{statusConfig.Approve.label}</Button>
+                    <Button variant="danger" className="flex-1" onClick={() => handleDecision('Decline')}>{statusConfig.Decline.label}</Button>
                   </>
               )}
 
               {/* STATUS: FRAUD (Decline) - Show Override */}
               {selectedTransaction.status === 'Decline' && (
                   <Button variant="secondary" className="flex-1" onClick={() => handleDecision('Approve')}>
-                      Override Approve (Force)
+                      Override {statusConfig.Approve.label} (Force)
                   </Button>
               )}
 
               {/* STATUS: APPROVED - Show Report Fraud */}
               {selectedTransaction.status === 'Approve' && (
                   <Button variant="danger" className="flex-1" onClick={() => handleDecision('Decline')}>
-                      Report Fraud (Decline)
+                      Report Fraud ({statusConfig.Decline.label})
                   </Button>
               )}
             </div>
