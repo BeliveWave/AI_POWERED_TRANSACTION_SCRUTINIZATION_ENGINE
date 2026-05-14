@@ -1,4 +1,4 @@
-# 🚀 Quick Team Member Setup Guide
+<!-- # 🚀 Quick Team Member Setup Guide
 
 **For Sprint 3 - AI-Powered Transaction Scrutinization Engine**
 
@@ -290,4 +290,4 @@ Once you complete all steps:
 
 **Happy Coding! 🚀**
 
-If you encounter any issues not listed here, check `SETUP.md` for more detailed troubleshooting or ask the team.
+If you encounter any issues not listed here, check `SETUP.md` for more detailed troubleshooting or ask the team. -->
