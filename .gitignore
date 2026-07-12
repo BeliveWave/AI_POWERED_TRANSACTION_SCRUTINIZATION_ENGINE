@@ -137,3 +137,48 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.python-version
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.venv
+
+# Python tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.tox/
+.nox/
+
+# Coverage
+.coverage
+.coverage.*
+htmlcov/
+
+# Packaging
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ML model and artifact files
+*.keras
+*.h5
+*.pkl
+*.joblib
+
+# Optional local database files
+*.db
+*.sqlite
+*.sqlite3
