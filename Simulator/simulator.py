@@ -1,3 +1,4 @@
+import os
 import time
 import random
 import requests
@@ -9,8 +10,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Configuration
-BASE_URL = "http://localhost:8000"
-API_URL = f"{BASE_URL}/api/predict"
+BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
+API_URL = f"{BASE_URL}/api/score"
+MAX_TRANSACTIONS = int(os.environ.get("MAX_TRANSACTIONS", "0"))
 
 def get_real_customers():
     """Asks the backend for a list of real customers (IDs + Card Info)."""
@@ -23,62 +25,51 @@ def get_real_customers():
     return [] # Fallback
 
 def generate_transaction(customers):
-    # 1. Pick a REAL customer (if available)
     if customers:
         selected_customer = random.choice(customers)
         cust_id = selected_customer['id']
-        # We don't strictly need to send card info in metadata if backend looks it up,
-        # but the prompt asked the Simulator to "fetch" and "send" it.
-        # However, backend 'predict' doesn't explicitly save it from metadata, it saves txn.
-        # But 'get_recent_transactions' joins on Customer table.
-        # So sending it is good for debugging but not strictly required for backend storage 
-        # since backend has the source of truth.
-        # We will focus on sending the ID correct so backend can join.
     else:
-        cust_id = 1 # Fallback ID
+        cust_id = 1 
 
-    # 2. Generate Random Features (V1-V28, Time, Amount in USD)
-    # Features 0-27: PCA features (already normalized -2.0 to 2.0)
-    # Feature 28: Time feature
-    # Feature 29: Amount (MUST be in normalized range for Autoencoder!)
-    features = [random.uniform(-2.0, 2.0) for _ in range(30)]
+    # Normal Transaction Logic
+    amount = random.uniform(10.0, 200.0)
+    mcc = random.choice(["5411", "5812", "5541", "4511", "5999", "5732", "7999", "4722"])
+    merchant = f"Merchant_{random.randint(1, 1000)}"
+    country = "LK"
+    pos_mode = random.choices(["01", "05", "81", "90"], weights=[0.05, 0.6, 0.3, 0.05])[0]
     
-    # 3. Generate Amount - IMPORTANT: Must be normalized!
-    # Typical transaction: 500-15,000 LKR = 1.67 to 50 USD
-    # For Autoencoder compatibility, keep in range -3 to +3 (like other features)
-    # Use normalized amount: (amount_usd - mean) / std ≈ 0 to 2
-    amount_lkr = round(random.uniform(500.0, 15000.0), 2)
-    amount_usd = amount_lkr / 300.0  # Convert to USD (1.67 to 50 USD)
-    # Normalize to -2 to +2 range (median ~16 USD maps to ~0)
-    normalized_amount = (amount_usd - 25.0) / 20.0  # Centers around typical transaction
-    features[29] = normalized_amount
-    
-    # 4. Inject Fraud (10% chance)
+    # Inject Fraud (10% chance)
     is_fraud = random.random() < 0.10
     if is_fraud: 
-        logger.warning("GENERATING ATTACK TRANSACTION...")
-        features[0] = 50.0    # Anomaly in V1 (PCA component)
-        features[4] = -50.0   # Anomaly in V4 (PCA component)
-        # For fraud, use large unusual amount (30,000 LKR)
-        amount_lkr = 30000.0
-        amount_usd = 30000.0 / 300.0  # 100 USD
-        normalized_amount = (amount_usd - 25.0) / 20.0  # ≈ 3.75 (outside normal range)
-        features[29] = normalized_amount
+        logger.warning("GENERATING ATTACK TRANSACTION (Fraud Simulation)...")
+        fraud_type = random.choice(["high_amount", "foreign_country", "ecommerce_burst"])
+        
+        if fraud_type == "high_amount":
+            amount = amount * random.uniform(10, 50)
+        elif fraud_type == "foreign_country":
+            country = random.choice(["US", "GB", "AU", "SG"])
+            pos_mode = "05" 
+        elif fraud_type == "ecommerce_burst":
+            pos_mode = "81" 
+            mcc = "5732" 
+            amount = random.uniform(1000, 5000)
 
-    # 4. Construct Payload with Metadata
     txn_payload = {
-        "features": features,
         "metadata": {
             "customer_id": cust_id,
-            "merchant": random.choice(["Amazon", "Netflix", "Uber", "Apple", "Walmart", "Target", "Daraz", "PickMe", "DarkWeb Store"]),
-            "amount": amount_lkr
+            "merchant": merchant,
+            "merchant_category_code": mcc,
+            "merchant_country_code": country,
+            "amount": round(amount, 2),
+            "currency": "USD",
+            "transaction_type": "PURCHASE",
+            "pos_entry_mode": pos_mode,
+            "terminal_id": f"TERM_{random.randint(10000, 99999)}",
+            "moto_eci_indicator": "02" if pos_mode == "81" else "00",
+            "three_d_secure": "N" if (pos_mode == "81" and random.random() > 0.5) else "Y"
         }
     }
     
-    # Logic: If merchant is "DarkWeb Store", make it 100% Fraud (for Demo)
-    if txn_payload['metadata']['merchant'] == "DarkWeb Store":
-        txn_payload['features'][0] = 50.0 # Huge spike to trigger AI Fraud
-        txn_payload['features'][4] = -50.0 
     return txn_payload
 
 
@@ -107,33 +98,51 @@ def run_simulation():
             response = requests.post(API_URL, json=txn_data)
 
             # 3. Parse Response
+            meta = txn_data['metadata']
             if response.status_code == 200:
                 result = response.json()
-                score = result['fraud_score']
-                status = result['status']
-                
-                # Color code the output
-                if status == "Decline":
-                    icon = "[X]"
-                    color = "\033[91m" # Red
-                elif status == "Escalate":
-                    icon = "[!]"
-                    color = "\033[93m" # Yellow
-                else:
-                    icon = "[OK]"
-                    color = "\033[92m" # Green
+                status = result.get('status', 'Unknown')
+                score = result.get('fraud_score', 0.0)
+                proc_ms = result.get('processing_time_ms', 0.0)
+                reason = result.get('decision_reason', '')
                 
                 reset = "\033[0m"
+                if status == "Approve":
+                    color = "\033[92m"  # Green
+                    icon = "[+]"
+                elif status == "Escalate":
+                    color = "\033[93m"  # Yellow
+                    icon = "[!]"
+                else:
+                    color = "\033[91m"  # Red
+                    icon = "[X]"
+                    
+                print(f"Txn #{transaction_count:04d} | Cust {meta['customer_id']} | USD {meta['amount']:<7} | {color}{icon} {status.upper()} (Score: {score:.3f}, {proc_ms:.1f}ms){reset} | {reason}")
+            elif response.status_code == 202:
+                result = response.json()
+                status = result.get('status', 'Queued')
+                txn_id = result.get('decision_reason', '').split(': ')[-1].replace(')', '')
+                
+                color = "\033[96m" # Cyan
+                icon = "[~]"
+                reset = "\033[0m"
 
-                meta = txn_data['metadata']
-                print(f"Txn #{transaction_count:04d} | Cust {meta['customer_id']} | LKR {meta['amount']:<8} | Score: {score:.4f} | {color}{icon} {status.upper()}{reset}")
+                print(f"Txn #{transaction_count:04d} | Cust {meta['customer_id']} | USD {meta['amount']:<7} | {color}{icon} ASYNC {status.upper()} (ID: {txn_id}){reset}")
             else:
-                print(f"[X] Error: {response.text}")
+                print(f"[X] Error {response.status_code}: {response.text}")
+
+            if MAX_TRANSACTIONS > 0 and transaction_count >= MAX_TRANSACTIONS:
+                print(f"\n[OK] Reached batch limit of {MAX_TRANSACTIONS} transactions. Simulation completed successfully.")
+                break
 
             transaction_count += 1
             
-            # Sleep for random time (2s to 5s) for demo pacing
-            time.sleep(random.uniform(2.0, 5.0))
+            # Sleep for demo pacing (custom delay if set, else 2-5s)
+            delay = float(os.environ.get("SIMULATOR_DELAY", "-1"))
+            if delay >= 0:
+                time.sleep(delay)
+            else:
+                time.sleep(random.uniform(2.0, 5.0))
 
         except KeyboardInterrupt:
             print("\n[*] Simulation Stopped.")

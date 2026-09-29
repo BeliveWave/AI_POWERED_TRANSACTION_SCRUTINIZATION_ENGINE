@@ -1,5 +1,6 @@
+# Core API
 fastapi
-uvicorn
+uvicorn[standard]
 sqlalchemy
 psycopg2-binary
 pydantic[email]
@@ -9,14 +10,30 @@ python-jose[cryptography]
 python-multipart
 python-dotenv
 alembic
+
+# ML (no TensorFlow — autoencoder runs via numpy weights)
 joblib
 scikit-learn
 xgboost
 pandas
 numpy
+shap>=0.46.0
+matplotlib
+
+# Auth extras
 pyotp
 qrcode
 emails
-tensorflow
-keras
-matplotlib
+
+# Caching (optional — degrades gracefully if unavailable)
+redis
+
+# Message queue (optional — only needed for async Kafka pipeline)
+# kafka-python  # Uncomment if running fraud_consumer.py worker
+
+# Graph DB (optional — degrades gracefully if unavailable)
+neo4j
+
+# Training only (not needed for inference)
+# tensorflow  # Only for retraining autoencoder; inference uses numpy weights
+# keras       # Same as above

@@ -1,0 +1,25 @@
+# Render.com deployment configuration
+# Free tier: web service sleeps after 15 min idle (cold start ~30-60s on wake)
+services:
+  - type: web
+    name: tse-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        sync: false  # Set in Render dashboard — never commit
+      - key: SECRET_KEY
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: KAFKA_BROKER_URL
+        value: disabled  # Kafka not used in cloud mode; sync endpoint used instead
+      - key: NEO4J_URI
+        value: bolt://localhost:7687  # Disabled in cloud; graph features degrade to 0
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "30"

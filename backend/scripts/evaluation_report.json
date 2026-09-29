@@ -1,0 +1,35 @@
+{
+  "run_at": "2026-09-29T14:39:59.539332",
+  "dataset": "SYNTHETIC \u2014 do not interpret as real-world performance",
+  "test_set_size": 29930,
+  "test_fraud_count": 1470,
+  "test_fraud_rate_pct": 4.91,
+  "temporal_split": true,
+  "metrics": {
+    "accuracy": 0.9859,
+    "roc_auc": 0.9872,
+    "pr_auc": 0.955,
+    "brier_score": 0.0159,
+    "precision_fraud": 0.8067,
+    "recall_fraud": 0.9367,
+    "false_positive_rate": 0.0116
+  },
+  "confusion_matrix": {
+    "tn": 28130,
+    "fp": 330,
+    "fn": 93,
+    "tp": 1377
+  },
+  "feature_importance": {
+    "is_foreign": 0.8196,
+    "amount": 0.1217,
+    "moto_eci_indicator_enc": 0.0295,
+    "merchant_category_code_enc": 0.01,
+    "three_d_secure_enc": 0.005,
+    "velocity_1h": 0.0038,
+    "pos_entry_mode_enc": 0.0037,
+    "currency_enc": 0.0035,
+    "hour_of_day": 0.0032
+  },
+  "caveat": "All metrics are on synthetic data. Fraud was injected via simple rules (high amount, foreign country, e-commerce). Model learns these artificial patterns. Real-world performance would require real labeled transaction data."
+}

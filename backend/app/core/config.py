@@ -9,6 +9,15 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     ALGORITHM: str = "HS256"
     
+    # Infrastructure
+    REDIS_URL: str = "redis://localhost:6379/0"
+    KAFKA_BROKER_URL: str = "localhost:9092"
+    
+    # Graph DB (Neo4j)
+    NEO4J_URI: str = "bolt://localhost:7687"
+    NEO4J_USER: str = "neo4j"
+    NEO4J_PASSWORD: str = "password"
+    
     # Email Settings
     SMTP_SERVER: Optional[str] = "smtp.gmail.com"
     SMTP_PORT: Optional[str] = "587"

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { CreditCard, AlertTriangle, Clock, Zap } from 'lucide-react';
-import Card from '../components/Common/Card.jsx';
-import Badge from '../components/Common/Badge.jsx';
-import Modal from '../components/Common/Modal.jsx';
-import Button from '../components/Common/Button.jsx';
+import { ArrowUpRight, ShieldAlert, ArrowRight } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card.jsx';
+import { Badge } from '../components/ui/badge.jsx';
+import { Button } from '../components/ui/button.jsx';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../components/ui/dialog.jsx';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/table.jsx';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -23,248 +24,337 @@ const Dashboard = () => {
   // Fetch recent transactions (Polling)
   useEffect(() => {
     const fetchTransactions = async () => {
-        try {
-            const response = await fetch('http://localhost:8000/api/transactions/recent');
-            if (response.ok) {
-                const data = await response.json();
-                // Map backend data to UI format
-                // Backend returns: id, customer_id, merchant, amount, timestamp, fraud_score, status, customer_name, card_type, card_last_four
-                const mappedTxns = data.map(txn => ({
-                    id: txn.id,
-                    time: new Date(txn.timestamp).toLocaleTimeString(),
-                    amount: `LKR ${txn.amount.toFixed(2)}`,
-                    merchant: txn.merchant,
-                    // customer info for display
-                    description: `Transaction by ${txn.customer_name} (${txn.card_type} ...${txn.card_last_four})`,
-                    score: txn.fraud_score,
-                    decision: txn.status, 
-                    status: txn.status === 'Decline' ? 'danger' : (txn.status === 'Escalate' ? 'warning' : 'success')
-                }));
-                setTransactions(mappedTxns);
-            }
-        } catch (error) {
-            console.error("Error fetching transactions:", error);
+      try {
+        const response = await fetch('http://localhost:8000/api/transactions/recent');
+        if (response.ok) {
+          const data = await response.json();
+          const mappedTxns = data.map(txn => ({
+            id: txn.id,
+            time: new Date(txn.timestamp).toLocaleTimeString(),
+            amount: `LKR ${txn.amount.toFixed(2)}`,
+            merchant: txn.merchant,
+            customer_name: txn.customer_name,
+            card_info: `${txn.card_type} •••• ${txn.card_last_four}`,
+            score: txn.fraud_score,
+            decision: txn.status,
+            variant: txn.status === 'Decline' ? 'destructive' : (txn.status === 'Escalate' ? 'warning' : 'outline')
+          }));
+          setTransactions(mappedTxns);
         }
+      } catch (error) {
+        console.error("Error fetching transactions:", error);
+      }
     };
 
     const fetchDashboardData = async () => {
-        try {
-            // Fetch Stats
-            const statsRes = await fetch('http://localhost:8000/api/dashboard/stats');
-            if (statsRes.ok) {
-                const statsJson = await statsRes.json();
-                setStats(statsJson);
-            }
-
-            // Fetch Graph Trends
-            const trendsRes = await fetch('http://localhost:8000/api/dashboard/trends');
-            if (trendsRes.ok) {
-                const trendsJson = await trendsRes.json();
-                setGraphData(trendsJson);
-            }
-
-            // Fetch Risky Merchants
-            const riskRes = await fetch('http://localhost:8000/api/dashboard/risky-merchants');
-            if (riskRes.ok) {
-                const riskJson = await riskRes.json();
-                setRiskyMerchants(riskJson);
-            }
-        } catch (error) {
-            console.error("Error fetching dashboard data:", error);
+      try {
+        const statsRes = await fetch('http://localhost:8000/api/dashboard/stats');
+        if (statsRes.ok) {
+          const statsJson = await statsRes.json();
+          setStats(statsJson);
         }
+
+        const trendsRes = await fetch('http://localhost:8000/api/dashboard/trends');
+        if (trendsRes.ok) {
+          const trendsJson = await trendsRes.json();
+          setGraphData(trendsJson);
+        }
+
+        const riskRes = await fetch('http://localhost:8000/api/dashboard/risky-merchants');
+        if (riskRes.ok) {
+          const riskJson = await riskRes.json();
+          setRiskyMerchants(riskJson);
+        }
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      }
     };
 
-    // Initial fetch
     fetchTransactions();
     fetchDashboardData();
 
-    // Poll every 2 seconds
     const interval = setInterval(() => {
-        fetchTransactions();
-        fetchDashboardData();
+      fetchTransactions();
+      fetchDashboardData();
     }, 2000);
 
     return () => clearInterval(interval);
   }, []);
 
-  const dashboardKPIs = [
-    { label: 'Transactions Today', value: stats.total_transactions.toLocaleString(), icon: CreditCard, color: 'blue' },
-    { label: 'Fraud Detected', value: stats.fraud_detected, icon: AlertTriangle, color: 'red' },
-    { label: 'Under Review', value: stats.under_review, icon: Clock, color: 'amber' },
-    { label: 'Avg Response', value: `${stats.avg_response_ms}ms`, icon: Zap, color: 'green' },
-  ];
-
-  const fraudTrendsData = [
-    { date: 'Mon', fraud: 12, approved: 145, review: 8 },
-    { date: 'Tue', fraud: 19, approved: 168, review: 12 },
-    { date: 'Wed', fraud: 8, approved: 132, review: 5 },
-    { date: 'Thu', fraud: 24, approved: 189, review: 18 },
-    { date: 'Fri', fraud: 15, approved: 156, review: 10 },
-    { date: 'Sat', fraud: 10, approved: 98, review: 6 },
-    { date: 'Sun', fraud: 14, approved: 112, review: 9 },
-  ];
-
-  // const riskyMerchants = []; // Now fetched from API
-
-  const KPICard = ({ label, value, icon: Icon, color }) => {
-    const colorMap = {
-      blue: { backgroundColor: 'bg-blue-50 dark:bg-blue-900/30', color: 'text-blue-600 dark:text-blue-400' },
-      red: { backgroundColor: 'bg-red-50 dark:bg-red-900/30', color: 'text-red-600 dark:text-red-400' },
-      amber: { backgroundColor: 'bg-amber-50 dark:bg-amber-900/30', color: 'text-amber-600 dark:text-amber-400' },
-      green: { backgroundColor: 'bg-green-50 dark:bg-green-900/30', color: 'text-green-600 dark:text-green-400' }
-    };
-
-    return (
-      <Card className="p-6 cursor-pointer hover:shadow-md transition-shadow dark:hover:shadow-slate-900/50" onClick={() => navigate('/transactions')}>
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-600 dark:text-slate-400">{label}</p>
-            <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{value}</p>
-          </div>
-          <div className={`p-3 rounded-lg ${colorMap[color].backgroundColor}`}>
-            <Icon size={24} className={colorMap[color].color} />
-          </div>
-        </div>
-      </Card>
-    );
-  };
-
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-        <p className="text-gray-600 dark:text-slate-400 mt-1">Welcome back! Here's your fraud detection overview.</p>
+    <div className="max-w-7xl mx-auto space-y-6">
+      
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Scrutinization Overview</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Real-time throughput, model inference telemetry, and active anomaly queues.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => navigate('/transactions')}>
+            View Ledger
+          </Button>
+          <Button size="sm" onClick={() => navigate('/investigator')}>
+            Open Queue
+          </Button>
+        </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {dashboardKPIs.map((kpi, idx) => (
-          <KPICard key={idx} {...kpi} />
-        ))}
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        {/* Total Transactions */}
+        <Card className="hover:border-foreground/20 transition-colors">
+          <CardContent className="p-5 space-y-2">
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>Transactions Today</span>
+              <span className="text-xs font-medium">Throughput</span>
+            </div>
+            <div className="text-3xl font-bold tracking-tight tabular-nums text-foreground">
+              {stats.total_transactions.toLocaleString()}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Evaluated in real-time
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Fraud Detected */}
+        <Card className="hover:border-foreground/20 transition-colors">
+          <CardContent className="p-5 space-y-2">
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>Flagged & Declined</span>
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 dark:text-red-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></span> Policy Block
+              </span>
+            </div>
+            <div className="text-3xl font-bold tracking-tight tabular-nums text-foreground">
+              {stats.fraud_detected.toLocaleString()}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Critical anomalies intercepted
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Under Review */}
+        <Card className="hover:border-foreground/20 transition-colors">
+          <CardContent className="p-5 space-y-2">
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>Under Review</span>
+              <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                Escalated
+              </span>
+            </div>
+            <div className="text-3xl font-bold tracking-tight tabular-nums text-foreground">
+              {stats.under_review.toLocaleString()}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Awaiting analyst triage
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Avg Response */}
+        <Card className="hover:border-foreground/20 transition-colors">
+          <CardContent className="p-5 space-y-2">
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>Inference Latency</span>
+              <span className="text-xs font-mono">p99</span>
+            </div>
+            <div className="text-3xl font-bold tracking-tight tabular-nums text-foreground">
+              {stats.avg_response_ms}<span className="text-base font-normal text-muted-foreground">ms</span>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Target SLA &lt; 200ms
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Fraud Trends Chart */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Fraud Trends (Last 7 Days)</h2>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={graphData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.2} />
-            <XAxis dataKey="name" stroke="#6b7280" />
-            <YAxis stroke="#6b7280" />
-            <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', color: '#f8fafc' }} />
-            <Legend />
-            <Line type="monotone" dataKey="fraud" stroke="#ef4444" strokeWidth={2} dot={{ fill: '#ef4444' }} />
-            <Line type="monotone" dataKey="approved" stroke="#22c55e" strokeWidth={2} dot={{ fill: '#22c55e' }} />
-            <Line type="monotone" dataKey="review" stroke="#f59e0b" strokeWidth={2} dot={{ fill: '#f59e0b' }} />
-          </LineChart>
-        </ResponsiveContainer>
+      {/* Fraud Trends Line Chart */}
+      <Card>
+        <CardHeader className="p-5 pb-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base">Risk Trends (Last 7 Days)</CardTitle>
+              <CardDescription>Daily volume breakdown across approved, escalated, and declined outcomes.</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-5 pt-2">
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={graphData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="opacity-10" />
+                <XAxis dataKey="name" stroke="currentColor" className="text-xs opacity-60" />
+                <YAxis stroke="currentColor" className="text-xs opacity-60" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'var(--popover)',
+                    borderColor: 'var(--border)',
+                    borderRadius: '0.5rem',
+                    color: 'var(--popover-foreground)',
+                    fontSize: '13px'
+                  }}
+                />
+                <Legend wrapperStyle={{ fontSize: '13px', paddingTop: '10px' }} />
+                <Line type="monotone" dataKey="fraud" name="Declined" stroke="#ef4444" strokeWidth={2} dot={{ r: 3, fill: '#ef4444' }} />
+                <Line type="monotone" dataKey="approved" name="Approved" stroke="#71717a" strokeWidth={1.5} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="review" name="Escalated" stroke="#f59e0b" strokeWidth={1.5} dot={{ r: 2, fill: '#f59e0b' }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
       </Card>
 
-      {/* Live Feed & Risky Merchants */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Live Feed */}
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Live Feed (Real-Time)</h2>
-          <div className="space-y-3">
+      {/* Live Feed & Risky Merchants Split */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Live Feed (Takes 2 cols) */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="p-5 pb-3 flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-base">Real-Time Event Feed</CardTitle>
+              <CardDescription>Incoming transactions evaluated by the scoring pipeline.</CardDescription>
+            </div>
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Streaming
+            </span>
+          </CardHeader>
+          <CardContent className="p-0">
             {transactions.length === 0 ? (
-                <p className="text-gray-500 dark:text-slate-400 text-center py-4">Waiting for simulator traffic...</p>
+              <p className="text-sm text-muted-foreground text-center py-12">
+                Awaiting incoming simulator traffic...
+              </p>
             ) : (
-                transactions.map((txn) => (
-                <div 
-                    key={txn.id} 
-                    onClick={() => setSelectedTransaction(txn)} 
-                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 cursor-pointer transition-colors"
-                >
-                    <div className="flex-1">
-                  <p className="font-medium text-gray-900 dark:text-white">{txn.merchant}</p>
-                  <p className="text-xs text-blue-600 dark:text-amber-500 font-semibold">{txn.description}</p>
-                  <p className="text-sm text-gray-500 dark:text-slate-400">{txn.time}</p>
-                </div>
-                    <div className="text-right">
-                    <p className="font-medium text-gray-900 dark:text-white">{txn.amount}</p>
-                    <Badge variant={txn.status}>{txn.decision}</Badge>
-                    </div>
-                </div>
-                ))
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Transaction</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-center">Score</TableHead>
+                      <TableHead className="text-right">Decision</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {transactions.slice(0, 8).map((txn) => (
+                      <TableRow
+                        key={txn.id}
+                        onClick={() => setSelectedTransaction(txn)}
+                        className="cursor-pointer"
+                      >
+                        <TableCell className="tabular-nums text-muted-foreground">{txn.time}</TableCell>
+                        <TableCell>
+                          <div className="font-medium text-foreground">{txn.merchant}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">{txn.customer_name} • {txn.card_info}</div>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums font-medium text-foreground">{txn.amount}</TableCell>
+                        <TableCell className="text-center tabular-nums font-semibold">
+                          <span className={txn.score > 0.7 ? 'text-red-600 dark:text-red-400' : (txn.score > 0.5 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground')}>
+                            {(txn.score * 100).toFixed(0)}%
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant={txn.variant}>{txn.decision}</Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
-          </div>
+          </CardContent>
         </Card>
 
-        {/* Risky Merchants */}
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Risky Merchants</h2>
-          <div className="space-y-3">
-            {riskyMerchants.map((merchant, idx) => (
-              <div 
-                key={idx} 
-                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 cursor-pointer transition-colors"
-              >
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900 dark:text-white">{merchant.name}</p>
-                  <p className="text-sm text-gray-500 dark:text-slate-400">{merchant.txns} transactions</p>
-                </div>
-                <div className="w-12 h-12 bg-red-50 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
-                  <span className="text-red-600 dark:text-red-400 font-bold text-sm">{(merchant.risk * 100).toFixed(0)}%</span>
-                </div>
-              </div>
-            ))}
-          </div>
+        {/* Risky Merchants (Takes 1 col) */}
+        <Card>
+          <CardHeader className="p-5 pb-3">
+            <CardTitle className="text-base">High-Risk Merchants</CardTitle>
+            <CardDescription>Merchants with elevated anomaly frequency.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-5 pt-0">
+            <div className="space-y-3">
+              {riskyMerchants.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No merchant anomalies detected.</p>
+              ) : (
+                riskyMerchants.slice(0, 5).map((m, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3.5 rounded-lg border border-border bg-card">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{m.name}</p>
+                      <p className="text-xs text-muted-foreground tabular-nums mt-0.5">{m.txns} transactions</p>
+                    </div>
+                    <Badge variant="outline" className="tabular-nums font-semibold">
+                      {(m.risk * 100).toFixed(0)}% risk
+                    </Badge>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
         </Card>
       </div>
 
-      {/* Transaction Detail Modal */}
-      <Modal isOpen={!!selectedTransaction} onClose={() => setSelectedTransaction(null)} title="Transaction Details" size="lg">
-        {selectedTransaction && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-500 dark:text-slate-400">Transaction ID</p>
-                <p className="font-medium text-gray-900 dark:text-white">{selectedTransaction.id}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-slate-400">Amount</p>
-                <p className="font-medium text-gray-900 dark:text-white">{selectedTransaction.amount}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-slate-400">Merchant</p>
-                <p className="font-medium text-gray-900 dark:text-white">{selectedTransaction.merchant}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-slate-400">Country</p>
-                <p className="font-medium text-gray-900 dark:text-white">US</p>
-              </div>
-            </div>
-            <div className="border-t border-gray-200 dark:border-slate-700 pt-4">
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Fraud Analysis</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-slate-400">Fraud Score</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{(selectedTransaction.score * 100).toFixed(1)}%</span>
+      {/* Transaction Detail Dialog */}
+      <Dialog open={!!selectedTransaction} onOpenChange={(open) => !open && setSelectedTransaction(null)}>
+        <DialogContent onClose={() => setSelectedTransaction(null)} className="max-w-md">
+          {selectedTransaction && (
+            <div className="space-y-5">
+              <DialogHeader>
+                <div className="flex items-center justify-between pr-6">
+                  <DialogTitle>Transaction #{selectedTransaction.id}</DialogTitle>
+                  <Badge variant={selectedTransaction.variant}>{selectedTransaction.decision}</Badge>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-slate-400">Decision</span>
-                  <Badge variant={selectedTransaction.status}>{selectedTransaction.decision}</Badge>
+                <DialogDescription>Telemetry & risk inference details</DialogDescription>
+              </DialogHeader>
+
+              <div className="grid grid-cols-2 gap-3 text-xs p-3 rounded-md bg-muted/40 border border-border">
+                <div>
+                  <span className="text-muted-foreground block">Customer</span>
+                  <span className="font-semibold text-foreground">{selectedTransaction.customer_name}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-slate-400">Confidence</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{(Math.abs(selectedTransaction.score - 0.5) * 200).toFixed(1)}%</span>
+                <div>
+                  <span className="text-muted-foreground block">Amount</span>
+                  <span className="font-semibold text-foreground tabular-nums">{selectedTransaction.amount}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block">Merchant</span>
+                  <span className="font-semibold text-foreground">{selectedTransaction.merchant}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block">Payment Method</span>
+                  <span className="font-semibold text-foreground tabular-nums">{selectedTransaction.card_info}</span>
                 </div>
               </div>
+
+              <div className="space-y-2 border-t border-border pt-3">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Calculated Fraud Score</span>
+                  <span className="font-bold tabular-nums text-foreground">{(selectedTransaction.score * 100).toFixed(1)}%</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Confidence Metric</span>
+                  <span className="font-bold tabular-nums text-foreground">{(Math.abs(selectedTransaction.score - 0.5) * 200).toFixed(1)}%</span>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button variant="default" className="flex-1" size="sm">
+                  Confirm Approve
+                </Button>
+                <Button variant="destructive" className="flex-1" size="sm">
+                  Decline
+                </Button>
+                <Button variant="secondary" className="flex-1" size="sm" onClick={() => { setSelectedTransaction(null); navigate('/investigator'); }}>
+                  Investigate
+                </Button>
+              </div>
             </div>
-            <div className="flex space-x-3">
-              <Button variant="success" className="flex-1">Approve</Button>
-              <Button variant="danger" className="flex-1">Decline</Button>
-              <Button variant="secondary" className="flex-1">Review</Button>
-            </div>
-            <button 
-              onClick={() => { setSelectedTransaction(null); navigate('/customers'); }} 
-              className="w-full text-center text-blue-600 hover:text-blue-700 dark:text-amber-500 dark:hover:text-amber-400 font-medium text-sm transition-colors"
-            >
-              View Customer Profile →
-            </button>
-          </div>
-        )}
-      </Modal>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

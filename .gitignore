@@ -172,13 +172,29 @@ pip-wheel-metadata/
 # Jupyter
 .ipynb_checkpoints/
 
-# ML model and artifact files
-*.keras
+# ML model and artifact files — ignore by default
 *.h5
-*.pkl
 *.joblib
+
+# Allow specific production model files needed for deployment
+!backend/fraud_model.pkl
+!backend/feature_encoders.pkl
+!backend/autoencoder_model.keras
+!backend/autoencoder_scaler.pkl
+!backend/autoencoder_metadata.pkl
+!backend/autoencoder_weights.pkl
+# Still ignore versioned/shadow models
+backend/*_v*.pkl
+backend/*_v*.keras
+backend/*_fixed_*.pkl
+backend/*_shadow*.pkl
+backend/*_simulator*.pkl
+backend/*_simulator*.keras
 
 # Optional local database files
 *.db
 *.sqlite
 *.sqlite3
+
+.agents
+skills-lock.json

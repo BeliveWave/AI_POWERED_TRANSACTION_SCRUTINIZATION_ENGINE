@@ -206,6 +206,67 @@ cd AI_POWERED_TRANSACTION_SCRUTINIZATION_ENGINE
 
 ---
 
+---
+
+### Step 7: Test Real-Time Fraud Scoring & Thresholds
+
+Test the synchronous, gap-free scoring endpoint:
+```bash
+curl -X POST http://localhost:8000/api/score \
+  -H "Content-Type: application/json" \
+  -d '{
+    "metadata": {
+      "customer_id": 1,
+      "merchant": "LocalGrocery",
+      "merchant_category_code": "5411",
+      "merchant_country_code": "LK",
+      "amount": 35.0,
+      "currency": "LKR",
+      "transaction_type": "PURCHASE",
+      "pos_entry_mode": "05",
+      "terminal_id": "TERM_001",
+      "moto_eci_indicator": "00",
+      "three_d_secure": "Y"
+    }
+  }'
+```
+
+### Step 8: Run Tests & Model Evaluation
+
+1. **Run Unit & Threshold Boundary Tests (23 tests):**
+   ```bash
+   pytest backend/tests/test_thresholds.py -v
+   ```
+
+2. **Run Model Evaluation & Generate Metrics Report:**
+   ```bash
+   python backend/scripts/evaluate_model.py
+   ```
+
+3. **View Model Retraining Runbook:**
+   ```bash
+   python backend/RETRAINING_RUNBOOK.py
+   ```
+
+---
+
+## ☁️ Cloud Deployment (Free Tier: Render + Vercel + Supabase)
+
+See [`render.yaml`](render.yaml) and [`CLOUD_DEPLOYMENT_PLAN.md`](CLOUD_DEPLOYMENT_PLAN.md) for full instructions:
+- **Backend:** Render.com Web Service (`rootDir: backend`, `uvicorn app.main:app --host 0.0.0.0 --port $PORT`)
+- **Frontend:** Vercel (`rootDir: frontend`, `npm run build`, `dist`)
+- **Database:** Supabase free PostgreSQL (`DATABASE_URL`)
+- **Cache (Optional):** Upstash Redis (`REDIS_URL`)
+- **Inference:** Pre-extracted NumPy weights (`autoencoder_weights.pkl`) ensure backend operates within free tier 512MB RAM without requiring TensorFlow.
+
+---
+
+## ⚠️ Important Disclaimers
+
+See [`LIMITATIONS.md`](LIMITATIONS.md) for full details on production readiness, synthetic data limitations, and architectural boundaries.
+
+---
+
 ## 🔧 Quick Start (After Initial Setup)
 
 For subsequent runs, you only need to:

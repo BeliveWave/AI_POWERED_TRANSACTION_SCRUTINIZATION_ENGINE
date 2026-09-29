@@ -1,419 +1,362 @@
-import React, { useState } from 'react';
-import { Filter, Download, RefreshCw } from 'lucide-react';
-import Card from '../components/Common/Card.jsx';
-import Button from '../components/Common/Button.jsx';
-import Badge from '../components/Common/Badge.jsx';
-import Modal from '../components/Common/Modal.jsx';
+import React, { useState, useEffect } from 'react';
+import { Filter, Download, RefreshCw, Search } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card.jsx';
+import { Button } from '../components/ui/button.jsx';
+import { Badge } from '../components/ui/badge.jsx';
+import { Input } from '../components/ui/input.jsx';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from '../components/ui/table.jsx';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '../components/ui/dialog.jsx';
 
 const Transactions = () => {
   const [selectedTransaction, setSelectedTransaction] = useState(null);
-  const [filterModalOpen, setFilterModalOpen] = useState(false);
-
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({ minAmt: '', maxAmt: '', status: 'All', date: 'today' });
   
-  // Dynamic threshold state
   const [declineThreshold, setDeclineThreshold] = useState(0.70);
   const [reviewThreshold, setReviewThreshold] = useState(0.50);
-  const [configLoading, setConfigLoading] = useState(true);
-  
-  // Dynamic status config state
-  const [statusConfig, setStatusConfig] = useState({
-    Approve: { label: 'Approve', color: 'bg-green-500', variant: 'success' },
-    Escalate: { label: 'Escalate', color: 'bg-yellow-500', variant: 'warning' },
-    Decline: { label: 'Decline', color: 'bg-red-500', variant: 'danger' }
-  });
-  
+
   // Fetch transactions with filters
   const fetchTransactions = async () => {
     setLoading(true);
     try {
-        const queryParams = new URLSearchParams();
-        if (searchQuery) queryParams.append('search', searchQuery);
-        if (filters.minAmt) queryParams.append('min_amt', filters.minAmt);
-        if (filters.maxAmt) queryParams.append('max_amt', filters.maxAmt);
-        if (filters.status !== 'All') queryParams.append('decision', filters.status);
-        queryParams.append('date_filter', filters.date);
+      const queryParams = new URLSearchParams();
+      if (searchQuery) queryParams.append('search', searchQuery);
+      if (filters.minAmt) queryParams.append('min_amt', filters.minAmt);
+      if (filters.maxAmt) queryParams.append('max_amt', filters.maxAmt);
+      if (filters.status !== 'All') queryParams.append('decision', filters.status);
+      queryParams.append('date_filter', filters.date);
 
-        const response = await fetch(`http://localhost:8000/api/transactions?${queryParams}`);
-        if (response.ok) {
-            const data = await response.json();
-            setTransactions(data);
-        }
+      const response = await fetch(`http://localhost:8000/api/transactions?${queryParams}`);
+      if (response.ok) {
+        const data = await response.json();
+        setTransactions(data);
+      }
     } catch (error) {
-        console.error("Error fetching transactions:", error);
+      console.error("Error fetching transactions:", error);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
   // Fetch dynamic config from backend
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchConfig = async () => {
       try {
         const response = await fetch('http://localhost:8000/api/admin/config');
         if (response.ok) {
           const configs = await response.json();
-          
-          // Fetch thresholds
           const declineConfig = configs.find(c => c.key === 'fraud_threshold_decline');
           const reviewConfig = configs.find(c => c.key === 'fraud_threshold_review');
-          
           if (declineConfig) setDeclineThreshold(parseFloat(declineConfig.value));
           if (reviewConfig) setReviewThreshold(parseFloat(reviewConfig.value));
-          
-          // Fetch status labels and colors
-          const newStatusConfig = { ...statusConfig };
-          
-          const approveLabel = configs.find(c => c.key === 'fraud_status_approve_label');
-          const escalateLabel = configs.find(c => c.key === 'fraud_status_escalate_label');
-          const declineLabel = configs.find(c => c.key === 'fraud_status_decline_label');
-          
-          const approveColor = configs.find(c => c.key === 'fraud_status_approve_color');
-          const escalateColor = configs.find(c => c.key === 'fraud_status_escalate_color');
-          const declineColor = configs.find(c => c.key === 'fraud_status_decline_color');
-          
-          if (approveLabel) newStatusConfig.Approve.label = approveLabel.value;
-          if (escalateLabel) newStatusConfig.Escalate.label = escalateLabel.value;
-          if (declineLabel) newStatusConfig.Decline.label = declineLabel.value;
-          
-          if (approveColor) newStatusConfig.Approve.color = `bg-${approveColor.value}-500`;
-          if (escalateColor) newStatusConfig.Escalate.color = `bg-${escalateColor.value}-500`;
-          if (declineColor) newStatusConfig.Decline.color = `bg-${declineColor.value}-500`;
-          
-          setStatusConfig(newStatusConfig);
         }
       } catch (error) {
         console.error('Error fetching config:', error);
-        // Falls back to defaults if fetch fails
-      } finally {
-        setConfigLoading(false);
       }
     };
-    
     fetchConfig();
   }, []);
   
-  React.useEffect(() => {
-      // Debounce search
-      const timer = setTimeout(() => {
-          fetchTransactions();
-      }, 500);
-      return () => clearTimeout(timer);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchTransactions();
+    }, 400);
+    return () => clearTimeout(timer);
   }, [searchQuery, filters]);
 
   const handleDecision = async (decision) => {
-      if (!selectedTransaction) return;
-      try {
-          const response = await fetch(`http://localhost:8000/api/transactions/${selectedTransaction.id}/decide?decision=${decision}`, {
-              method: 'POST'
-          });
-          if (response.ok) {
-              setFilterModalOpen(false); // Reuse this state? No, modal state is 'selectedTransaction'
-              setSelectedTransaction(null);
-              fetchTransactions(); // Refresh list
-          }
-      } catch (error) {
-          console.error("Error updating transaction:", error);
+    if (!selectedTransaction) return;
+    try {
+      const response = await fetch(
+        `http://localhost:8000/api/transactions/${selectedTransaction.id}/decide?decision=${decision}`,
+        { method: 'POST' }
+      );
+      if (response.ok) {
+        setSelectedTransaction(null);
+        fetchTransactions();
       }
+    } catch (error) {
+      console.error("Error updating transaction:", error);
+    }
   };
 
-  const getScoreColor = (score) => {
-    if (score > declineThreshold) return statusConfig.Decline.color;
-    if (score > reviewThreshold) return statusConfig.Escalate.color;
-    return statusConfig.Approve.color;
-  };
-  
-  const getBadgeVariant = (status) => {
-    return statusConfig[status]?.variant || 'success';
+  const getStatusBadge = (status, score) => {
+    if (status === 'Decline' || score > declineThreshold) {
+      return <Badge variant="destructive">Decline</Badge>;
+    }
+    if (status === 'Escalate' || score > reviewThreshold) {
+      return <Badge variant="warning">Escalate</Badge>;
+    }
+    return <Badge variant="outline">Approve</Badge>;
   };
 
   const exportCSV = () => {
     if (transactions.length === 0) return;
     
     const headers = ['Transaction ID', 'Customer', 'Time', 'Amount', 'Merchant', 'Score', 'Status'];
-    const csvRows = [];
-    csvRows.push(headers.join(','));
+    const csvRows = [headers.join(',')];
     
     transactions.forEach(txn => {
-        const row = [
-            `TXN-${txn.id}`,
-            `"${txn.customer_name}"`,
-            `"${new Date(txn.timestamp).toLocaleString()}"`,
-            txn.amount.toFixed(2),
-            `"${txn.merchant}"`,
-            `${(txn.fraud_score * 100).toFixed(0)}%`,
-            txn.status
-        ];
-        csvRows.push(row.join(','));
+      const row = [
+        `TXN-${txn.id}`,
+        `"${txn.customer_name}"`,
+        `"${new Date(txn.timestamp).toLocaleString()}"`,
+        txn.amount.toFixed(2),
+        `"${txn.merchant}"`,
+        `${(txn.fraud_score * 100).toFixed(0)}%`,
+        txn.status
+      ];
+      csvRows.push(row.join(','));
     });
     
     const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `transactions_export_${new Date().toISOString().slice(0,10)}.csv`);
+    link.setAttribute("download", `transactions_${new Date().toISOString().slice(0,10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Transactions</h1>
-        <p className="text-gray-600 dark:text-slate-400 mt-1">Monitor and manage all transactions in real-time.</p>
+    <div className="max-w-7xl mx-auto space-y-6">
+      
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Transaction Ledger</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Filter, audit, and intervene on real-time and historical transactions.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={fetchTransactions} disabled={loading}>
+            <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button size="sm" onClick={exportCSV} disabled={transactions.length === 0}>
+            <Download className="mr-1.5 h-3.5 w-3.5" />
+            Export CSV
+          </Button>
+        </div>
       </div>
 
-      {/* Filter Bar */}
-      <Card className="p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <input
-            type="text"
-            placeholder="Search ID, Merchant, Customer..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-colors"
-          />
-          <div className="flex space-x-2">
-            <input
+      {/* Filter Bar Card */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search ID, Merchant, Customer..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Input
                 type="number"
-                placeholder="Min Amt"
+                placeholder="Min LKR"
                 value={filters.minAmt}
                 onChange={(e) => setFilters({...filters, minAmt: e.target.value})}
-                className="w-1/2 px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors"
-            />
-            <input
+                className="w-1/2"
+              />
+              <Input
                 type="number"
-                placeholder="Max Amt"
+                placeholder="Max LKR"
                 value={filters.maxAmt}
                 onChange={(e) => setFilters({...filters, maxAmt: e.target.value})}
-                className="w-1/2 px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors"
-            />
-          </div>
-          <select 
-            value={filters.status}
-            onChange={(e) => setFilters({...filters, status: e.target.value})}
-            className="px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-colors"
-          >
-            <option value="All">All Decisions</option>
-            <option value="Approve">{statusConfig.Approve.label}</option>
-            <option value="Decline">{statusConfig.Decline.label}</option>
-            <option value="Escalate">{statusConfig.Escalate.label}</option>
-          </select>
-          <div className="flex space-x-2">
-            <Button variant="secondary" icon={RefreshCw} onClick={fetchTransactions}>
-              Refresh
-            </Button>
-            <Button variant="secondary" icon={Download} onClick={exportCSV}>
-              Export
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Transactions Table */}
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Transaction ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Customer</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Time</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Amount</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Merchant</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Score</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700">
-              {transactions.length === 0 ? (
-                  <tr><td colSpan="8" className="p-4 text-center text-gray-500 dark:text-slate-400">No transactions found</td></tr>
-              ) : (
-                transactions.map((txn) => (
-                    <tr key={txn.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">TXN-{txn.id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">{txn.customer_name}</p>
-                        <p className="text-xs text-gray-500 dark:text-slate-400">{txn.card_type} ...{txn.card_last_four}</p>
-                        </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{new Date(txn.timestamp).toLocaleString()}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">LKR {txn.amount.toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{txn.merchant}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm dark:text-white">
-                        <div className="flex items-center space-x-2">
-                        <div className={`w-3 h-3 rounded-full ${getScoreColor(txn.fraud_score)}`}></div>
-                        <span className="font-medium">{(txn.fraud_score * 100).toFixed(0)}%</span>
-                        </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <Badge variant={getBadgeVariant(txn.status)}>
-                            {statusConfig[txn.status]?.label || txn.status}
-                        </Badge>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <button
-                        onClick={() => setSelectedTransaction(txn)}
-                        className="text-blue-600 hover:text-blue-900 dark:text-amber-500 dark:hover:text-amber-400 font-medium transition-colors"
-                        >
-                        View
-                        </button>
-                    </td>
-                    </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      {/* View All / Today Toggle (Bottom of page as requested) */}
-      <div className="flex justify-center pb-8">
-          {filters.date === 'today' ? (
-              <Button onClick={() => setFilters({ ...filters, date: 'all' })} variant="secondary">
-                  View All History (Slow)
-              </Button>
-          ) : (
-              <Button onClick={() => setFilters({ ...filters, date: 'today' })}>
-                  Show Today Only
-              </Button>
-          )}
-      </div>
-
-      {/* Transaction Details Modal */}
-      <Modal
-        isOpen={!!selectedTransaction}
-        onClose={() => setSelectedTransaction(null)}
-        title="Transaction Details"
-        size="lg"
-      >
-        {selectedTransaction && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-500 dark:text-slate-400">Transaction ID</p>
-                <p className="font-medium text-gray-900 dark:text-white">{selectedTransaction.id}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-slate-400">Amount</p>
-                <p className="font-medium text-gray-900 dark:text-white">{selectedTransaction.amount}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-slate-400">Merchant</p>
-                <p className="font-medium text-gray-900 dark:text-white">{selectedTransaction.merchant}</p>
-              </div>
-               <div>
-                 <p className="text-sm text-gray-500 dark:text-slate-400">Card</p>
-                 <p className="font-medium text-gray-900 dark:text-white">{selectedTransaction.card_type} ...{selectedTransaction.card_last_four}</p>
-               </div>
-
+                className="w-1/2"
+              />
             </div>
 
-            <div className="border-t border-gray-200 dark:border-slate-700 pt-4">
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Fraud Analysis</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-slate-400">Fraud Score</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{(selectedTransaction.fraud_score * 100).toFixed(1)}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-slate-400">Decision</span>
-                  <Badge variant={getBadgeVariant(selectedTransaction.status)}>
-                      {statusConfig[selectedTransaction.status]?.label || selectedTransaction.status}
-                  </Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-slate-400">Confidence</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{(Math.abs(selectedTransaction.fraud_score - 0.5) * 200).toFixed(1)}%</span>
-                </div>
-              </div>
+            <div>
+              <select 
+                value={filters.status}
+                onChange={(e) => setFilters({...filters, status: e.target.value})}
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
+              >
+                <option value="All">All Decisions</option>
+                <option value="Approve">Approved Only</option>
+                <option value="Escalate">Escalated Only</option>
+                <option value="Decline">Declined Only</option>
+              </select>
             </div>
 
-            <div className="flex space-x-3">
-              {/* STATUS: REVIEW (Escalate) - Show Approve & Decline */}
-              {selectedTransaction.status === 'Escalate' && (
+            <div className="flex gap-2">
+              <Button
+                variant={filters.date === 'today' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilters({ ...filters, date: 'today' })}
+                className="w-1/2"
+              >
+                Today Only
+              </Button>
+              <Button
+                variant={filters.date === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilters({ ...filters, date: 'all' })}
+                className="w-1/2"
+              >
+                All History
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Ledger Table */}
+      <Card className="overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-28">ID</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Time</TableHead>
+              <TableHead>Merchant</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+              <TableHead className="text-center">Risk Score</TableHead>
+              <TableHead className="text-center">Status</TableHead>
+              <TableHead className="text-right">Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {transactions.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                  {loading ? "Loading transactions..." : "No transactions found matching your criteria."}
+                </TableCell>
+              </TableRow>
+            ) : (
+              transactions.map((txn) => (
+                <TableRow key={txn.id} className="hover:bg-muted/50 transition-colors">
+                  <TableCell className="tabular-nums font-semibold text-foreground">
+                    #{txn.id}
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium text-foreground">{txn.customer_name}</div>
+                    <div className="text-xs text-muted-foreground tabular-nums mt-0.5">{txn.card_type} •••• {txn.card_last_four}</div>
+                  </TableCell>
+                  <TableCell className="tabular-nums text-muted-foreground">
+                    {new Date(txn.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </TableCell>
+                  <TableCell className="text-foreground">{txn.merchant}</TableCell>
+                  <TableCell className="text-right tabular-nums font-semibold text-foreground">
+                    LKR {txn.amount.toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-center tabular-nums font-medium">
+                    <span className={txn.fraud_score > declineThreshold ? 'text-red-600 dark:text-red-400 font-semibold' : (txn.fraud_score > reviewThreshold ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-muted-foreground')}>
+                      {(txn.fraud_score * 100).toFixed(0)}%
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {getStatusBadge(txn.status, txn.fraud_score)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedTransaction(txn)}
+                      className="h-7 px-2 text-xs"
+                    >
+                      Audit
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </Card>
+
+      {/* Transaction Details Dialog */}
+      <Dialog open={!!selectedTransaction} onOpenChange={(open) => !open && setSelectedTransaction(null)}>
+        <DialogContent onClose={() => setSelectedTransaction(null)} className="max-w-md">
+          {selectedTransaction && (
+            <div className="space-y-5">
+              <DialogHeader>
+                <div className="flex items-center justify-between pr-6">
+                  <DialogTitle>Audit Transaction #{selectedTransaction.id}</DialogTitle>
+                  {getStatusBadge(selectedTransaction.status, selectedTransaction.fraud_score)}
+                </div>
+                <DialogDescription>
+                  Recorded on {new Date(selectedTransaction.timestamp).toLocaleString()}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid grid-cols-2 gap-3 p-3 rounded-lg border border-border bg-muted/40 text-xs">
+                <div>
+                  <span className="text-muted-foreground block">Customer</span>
+                  <span className="font-semibold text-foreground">{selectedTransaction.customer_name}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block">Amount</span>
+                  <span className="font-semibold text-foreground tabular-nums">LKR {selectedTransaction.amount.toFixed(2)}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block">Merchant</span>
+                  <span className="font-semibold text-foreground">{selectedTransaction.merchant}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block">Card Instrument</span>
+                  <span className="font-semibold text-foreground tabular-nums">{selectedTransaction.card_type} •••• {selectedTransaction.card_last_four}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2 border-t border-border pt-3">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Fraud Confidence Score</span>
+                  <span className="font-bold tabular-nums text-foreground">{(selectedTransaction.fraud_score * 100).toFixed(1)}%</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Configured Threshold Band</span>
+                  <span className="text-muted-foreground tabular-nums">Review &gt; {(reviewThreshold * 100).toFixed(0)}% | Decline &gt; {(declineThreshold * 100).toFixed(0)}%</span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-2">
+                {selectedTransaction.status === 'Escalate' ? (
                   <>
-                    <Button variant="success" className="flex-1" onClick={() => handleDecision('Approve')}>{statusConfig.Approve.label}</Button>
-                    <Button variant="danger" className="flex-1" onClick={() => handleDecision('Decline')}>{statusConfig.Decline.label}</Button>
+                    <Button variant="default" className="flex-1" size="sm" onClick={() => handleDecision('Approve')}>
+                      Approve
+                    </Button>
+                    <Button variant="destructive" className="flex-1" size="sm" onClick={() => handleDecision('Decline')}>
+                      Decline
+                    </Button>
                   </>
-              )}
-
-              {/* STATUS: FRAUD (Decline) - Show Override */}
-              {selectedTransaction.status === 'Decline' && (
-                  <Button variant="secondary" className="flex-1" onClick={() => handleDecision('Approve')}>
-                      Override {statusConfig.Approve.label} (Force)
+                ) : selectedTransaction.status === 'Decline' ? (
+                  <Button variant="outline" className="w-full" size="sm" onClick={() => handleDecision('Approve')}>
+                    Override Policy & Force Approve
                   </Button>
-              )}
-
-              {/* STATUS: APPROVED - Show Report Fraud */}
-              {selectedTransaction.status === 'Approve' && (
-                  <Button variant="danger" className="flex-1" onClick={() => handleDecision('Decline')}>
-                      Report Fraud ({statusConfig.Decline.label})
+                ) : (
+                  <Button variant="destructive" className="w-full" size="sm" onClick={() => handleDecision('Decline')}>
+                    Retroactively Decline & Flag
                   </Button>
-              )}
+                )}
+              </div>
             </div>
-          </div>
-        )}
-      </Modal>
+          )}
+        </DialogContent>
+      </Dialog>
 
-      {/* Filter Modal */}
-      <Modal
-        isOpen={filterModalOpen}
-        onClose={() => setFilterModalOpen(false)}
-        title="Advanced Filters"
-        size="md"
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Amount Range</label>
-            <div className="flex space-x-2">
-              <input 
-                type="number" 
-                placeholder="Min" 
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-colors"
-              />
-              <input 
-                type="number" 
-                placeholder="Max" 
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-colors"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Fraud Score Range</label>
-            <div className="flex space-x-2">
-              <input 
-                type="number" 
-                placeholder="Min" 
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-colors"
-              />
-              <input 
-                type="number" 
-                placeholder="Max" 
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-colors"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Country</label>
-            <input 
-              type="text" 
-              placeholder="e.g., US, UK, NG" 
-              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-colors"
-            />
-          </div>
-          <div className="flex space-x-2">
-            <Button variant="secondary" className="flex-1">Clear</Button>
-            <Button className="flex-1">Apply</Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 };

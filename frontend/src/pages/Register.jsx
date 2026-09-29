@@ -1,235 +1,238 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, User, Mail, Lock, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, User, Mail, Lock, Shield, Sun, Moon, CheckCircle2, ArrowRight } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../hooks/useAuth';
+import { useTheme } from '../hooks/useTheme';
 import { useNavigate, Link } from 'react-router-dom';
-
-// Graphical/Abstract AI Tech Image
-const SIDE_IMAGE = "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=1965&auto=format&fit=crop";
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 
 const Register = () => {
-    const [fullName, setFullName] = useState('');
-    const [username, setUsername] = useState('');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const { register, login } = useAuth();
-    const navigate = useNavigate();
+  const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
+  const { register, login } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const navigate = useNavigate();
 
-        const result = await register(email, username, fullName, password);
-        setLoading(false);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (password.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
 
-        if (result.success) {
-            toast.success("Registration successful! Logging you in...");
+    setLoading(true);
+    const result = await register(email, username, fullName, password);
+    setLoading(false);
 
-            // Auto login after registration
-            const loginSuccess = await login(email, password);
-            if (loginSuccess) {
-                navigate('/dashboard');
-            } else {
-                toast.error("Auto-login failed. Please sign in manually.");
-                navigate('/login');
-            }
-        } else {
-            toast.error(result.error);
-        }
-    };
+    if (result.success) {
+      toast.success("Account created successfully. Signing in...");
+      const loginSuccess = await login(email, password);
+      if (loginSuccess) {
+        navigate('/dashboard');
+      } else {
+        toast.info("Please sign in with your credentials.");
+        navigate('/login');
+      }
+    } else {
+      toast.error(result.error || "Failed to create account");
+    }
+  };
 
-    return (
-        <div className="min-h-screen flex w-full bg-white dark:bg-slate-900 transition-colors">
-            {/* Left Side - Image & Branding */}
-            <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-blue-900 dark:bg-slate-950">
-                <div className="absolute inset-0 bg-blue-900/20 mix-blend-multiply z-10" />
-                <div className="absolute inset-0 bg-gradient-to-t from-blue-900 via-transparent to-transparent z-10" />
-                <img 
-                    src={SIDE_IMAGE} 
-                    alt="Register Background" 
-                    className="absolute inset-0 w-full h-full object-cover opacity-90"
-                />
-                
-                <div className="relative z-20 flex flex-col justify-between h-full p-12 text-white">
-                    <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-md border border-white/20">
-                            <Lock size={20} className="text-white" />
-                        </div>
-                        <span className="text-2xl font-bold tracking-wider">AMU</span>
-                    </div>
-                    
-                    <div className="max-w-md">
-                        <h1 className="text-4xl font-bold mb-4 leading-tight">
-                            Join the Future of<br/>Banking Security
-                        </h1>
-                        <p className="text-blue-100 text-lg">
-                            Create an account to access advanced AI tools for transaction monitoring and risk analysis.
-                        </p>
-                    </div>
-                </div>
-            </div>
+  return (
+    <div className="min-h-screen flex w-full bg-background text-foreground antialiased">
+      {/* Top right theme toggle */}
+      <div className="absolute top-4 right-4 z-50">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleTheme}
+          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          aria-label="Toggle theme"
+        >
+          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </Button>
+      </div>
 
-            {/* Right Side - Register Form */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white dark:bg-slate-900 overflow-y-auto transition-colors">
-                <div className="w-full max-w-md space-y-8 my-auto">
-                    <div className="text-center lg:text-left">
-                        <div className="lg:hidden flex justify-center mb-6">
-                            <div className="w-12 h-12 bg-blue-600 dark:bg-amber-600 rounded-lg flex items-center justify-center">
-                                <Lock size={24} className="text-white" />
-                            </div>
-                        </div>
-                        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Create Account</h2>
-                        <p className="text-gray-500 dark:text-slate-400">
-                            Enter your details to get started.
-                        </p>
-                    </div>
+      {/* Left Column: Institutional Brand Showcase (Desktop only) */}
+      <div className="hidden lg:flex lg:w-1/2 relative bg-zinc-950 text-zinc-100 flex-col justify-between p-12 border-r border-zinc-800 selection:bg-zinc-800">
+        {/* Subtle grid pattern background */}
+        <div className="absolute inset-0 bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
 
-                    <form onSubmit={handleSubmit} className="space-y-5 mt-8">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 ml-1">Full Name</label>
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <User className="h-5 w-5 text-gray-400 dark:text-slate-500 group-focus-within:text-amber-500 transition-colors" />
-                                </div>
-                                <input
-                                    type="text"
-                                    value={fullName}
-                                    onChange={(e) => setFullName(e.target.value)}
-                                    className="block w-full pl-10 pr-3 py-3 border border-gray-200 dark:border-slate-700 rounded-xl leading-5 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition duration-200 ease-in-out sm:text-sm"
-                                    placeholder="John Doe"
-                                    required
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 ml-1">Username</label>
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <User className="h-5 w-5 text-gray-400 dark:text-slate-500 group-focus-within:text-amber-500 transition-colors" />
-                                </div>
-                                <input
-                                    type="text"
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                    className="block w-full pl-10 pr-3 py-3 border border-gray-200 dark:border-slate-700 rounded-xl leading-5 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition duration-200 ease-in-out sm:text-sm"
-                                    placeholder="johndoe123"
-                                    required
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 ml-1">Email</label>
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Mail className="h-5 w-5 text-gray-400 dark:text-slate-500 group-focus-within:text-amber-500 transition-colors" />
-                                </div>
-                                <input
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="block w-full pl-10 pr-3 py-3 border border-gray-200 dark:border-slate-700 rounded-xl leading-5 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition duration-200 ease-in-out sm:text-sm"
-                                    placeholder="you@example.com"
-                                    required
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5 ml-1">Password</label>
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Lock className="h-5 w-5 text-gray-400 dark:text-slate-500 group-focus-within:text-amber-500 transition-colors" />
-                                </div>
-                                <input
-                                    type={showPassword ? 'text' : 'password'}
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="block w-full pl-10 pr-10 py-3 border border-gray-200 dark:border-slate-700 rounded-xl leading-5 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition duration-200 ease-in-out sm:text-sm"
-                                    placeholder="Create a password"
-                                    required
-                                />
-                                <button
-                                    type="button"
-                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors focus:outline-none"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                >
-                                    {showPassword ? (
-                                        <EyeOff className="h-5 w-5" aria-hidden="true" />
-                                    ) : (
-                                        <Eye className="h-5 w-5" aria-hidden="true" />
-                                    )}
-                                </button>
-                            </div>
-                            <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
-                                Must be at least 8 characters.
-                            </p>
-                        </div>
-
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-blue-600 dark:bg-amber-600 hover:bg-blue-700 dark:hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 dark:focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:-translate-y-0.5 mt-2"
-                        >
-                            {loading ? (
-                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                            ) : null}
-                            {loading ? 'Create Account' : 'Create Account'}
-                        </button>
-                    </form>
-
-                    <div className="mt-8">
-                        <div className="relative">
-                            <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-gray-200 dark:border-slate-700"></div>
-                            </div>
-                            <div className="relative flex justify-center text-sm">
-                                <span className="px-2 bg-white dark:bg-slate-900 text-gray-500 dark:text-slate-400 transition-colors">
-                                    Or register with
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className="mt-6 grid grid-cols-2 gap-3">
-                            <button
-                                type="button"
-                                className="w-full inline-flex justify-center py-2.5 px-4 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm bg-white dark:bg-slate-800 text-sm font-medium text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
-                            >
-                                <svg className="h-5 w-5" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z" />
-                                </svg>
-                                <span className="ml-2">Google</span>
-                            </button>
-                            <button
-                                type="button"
-                                className="w-full inline-flex justify-center py-2.5 px-4 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm bg-white dark:bg-slate-800 text-sm font-medium text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
-                            >
-                                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M16.365 1.43c0 1.14-.493 2.27-1.177 3.08-.744.9-1.99 1.57-2.987 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.15-.04-.21.09-1.39.71-2.73 1.69-3.59.81-.74 1.95-1.2 2.76-1.2.03.18.06.32.06.38zM8.32 23.32c.76 1.135 1.76 2.22 2.88 2.22 1.055 0 1.565-.7 2.94-.7 1.35 0 1.77.712 2.9.712 1.25 0 2.21-1.15 3.0-2.26 1.02-1.48 1.44-2.95 1.46-3.04-.03-.02-2.82-1.08-2.85-4.29-.02-2.67 2.19-3.95 2.29-4.01-.89-2.09-3.69-2.37-4.48-2.4-1.92-.09-3.13 1.14-3.93 1.14-.85 0-2.22-1.12-3.65-1.07-2.06.07-4 1.3-5.06 3.32-2.14 4.34.8 11.2 3.51 15.36z" />
-                                </svg>
-                                <span className="ml-2">Apple</span>
-                            </button>
-                        </div>
-                        
-                         <div className="text-center mt-6">
-                            <p className="text-sm text-gray-500 dark:text-slate-400">
-                                Already have an account?{' '}
-                                <Link to="/login" className="text-blue-600 dark:text-amber-500 hover:text-blue-500 dark:hover:text-amber-400 transition-colors font-semibold">
-                                    Log in
-                                </Link>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        {/* Brand header */}
+        <div className="relative z-10 flex items-center space-x-3">
+          <div className="h-9 w-9 rounded-md bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+            <Shield className="h-5 w-5 text-zinc-100" />
+          </div>
+          <div>
+            <span className="text-sm font-semibold tracking-wider uppercase text-zinc-100">Sentinel</span>
+            <span className="block text-[10px] text-zinc-500 font-mono">Fraud Intelligence Middleware</span>
+          </div>
         </div>
-    );
+
+        {/* Value Proposition */}
+        <div className="relative z-10 max-w-md space-y-6">
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-xs text-zinc-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Developer & Compliance Ready
+          </div>
+
+          <h1 className="text-3xl font-semibold tracking-tight text-zinc-100 leading-snug">
+            Equip your fraud operations team with explainable intelligence.
+          </h1>
+
+          <p className="text-sm text-zinc-400 leading-relaxed">
+            Create an institutional analyst profile to monitor transactions, configure algorithmic risk thresholds, inspect SHAP features, and export compliance audits.
+          </p>
+
+          <div className="pt-4 border-t border-zinc-900 space-y-3">
+            <div className="flex items-center gap-3 text-xs text-zinc-400">
+              <CheckCircle2 className="h-4 w-4 text-zinc-300 shrink-0" />
+              <span>Dedicated analyst workspace with role-based policies</span>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-zinc-400">
+              <CheckCircle2 className="h-4 w-4 text-zinc-300 shrink-0" />
+              <span>Full cryptographic audit logs & two-factor security</span>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-zinc-400">
+              <CheckCircle2 className="h-4 w-4 text-zinc-300 shrink-0" />
+              <span>Instant webhook notifications for critical policy declines</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer info */}
+        <div className="relative z-10 flex items-center justify-between text-xs text-zinc-500 font-mono">
+          <span>Enterprise Edition</span>
+          <span>Zero third-party trackers</span>
+        </div>
+      </div>
+
+      {/* Right Column: Register Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 overflow-y-auto">
+        <div className="w-full max-w-sm my-auto">
+          {/* Mobile branding header */}
+          <div className="lg:hidden flex items-center space-x-2.5 mb-8">
+            <div className="h-8 w-8 rounded-md bg-primary text-primary-foreground flex items-center justify-center">
+              <Shield className="h-4 w-4" />
+            </div>
+            <div>
+              <span className="text-sm font-semibold tracking-tight">Sentinel</span>
+              <span className="block text-[10px] text-muted-foreground font-mono">Fraud Scrutinization</span>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="space-y-1.5">
+              <h2 className="text-xl font-semibold tracking-tight">Create analyst account</h2>
+              <p className="text-xs text-muted-foreground">
+                Enter your details to register for the scrutinization console.
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-3.5">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Full Name</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="pl-9 h-9 text-xs"
+                    placeholder="Jane Doe"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Username</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="pl-9 h-9 text-xs font-mono"
+                    placeholder="jdoe_analyst"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Institutional Email</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-9 h-9 text-xs"
+                    placeholder="analyst@bank.com"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-9 pr-9 h-9 text-xs font-mono"
+                    placeholder="••••••••••••"
+                    required
+                    minLength={8}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Must be at least 8 characters.
+                </p>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full h-9 text-xs font-medium mt-2"
+              >
+                {loading ? 'Creating account...' : 'Create account'}
+              </Button>
+            </form>
+
+            <div className="pt-2 border-t border-border text-center">
+              <p className="text-xs text-muted-foreground">
+                Already registered?{' '}
+                <Link
+                  to="/login"
+                  className="font-medium text-foreground hover:underline underline-offset-4"
+                >
+                  Sign in
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default Register;

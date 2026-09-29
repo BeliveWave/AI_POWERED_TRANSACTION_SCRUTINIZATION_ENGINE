@@ -1,64 +1,69 @@
 #!/usr/bin/env python3
 """
-Full Simulator - 30 transactions to test hybrid model
+Full Simulator - Graph Fraud Ring Testing
 """
 
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
 import requests
 import random
 import time
 
 API_URL = "http://localhost:8000/api/predict"
 
-print("\n[*] FULL SIMULATOR - 30 Transactions")
+print("\n[*] FULL SIMULATOR - Graph Fraud Ring Testing")
 print("="*60 + "\n")
 
-for i in range(30):
-    # Generate features
-    features = [random.uniform(-2.0, 2.0) for _ in range(30)]
-    
-    # Generate amount
+# Fraud Ring setup
+# 3 customers colluding, sharing 1 IP address and 1 Device
+FRAUD_RING_CUSTOMERS = [1, 2, 3]
+FRAUD_RING_IP = "192.168.100.99"
+FRAUD_RING_DEVICE = "dev_iphone_12_jailbroken_xyz"
+
+for i in range(20):
     amount_lkr = round(random.uniform(500.0, 15000.0), 2)
-    amount_usd = amount_lkr / 300.0
-    normalized_amount = (amount_usd - 25.0) / 20.0
-    features[29] = normalized_amount
+    customer_id = random.randint(1, 6)
     
-    # Inject fraud (10% chance)
-    is_fraud = random.random() < 0.10
-    if is_fraud:
-        features[0] = 50.0
-        features[4] = -50.0
-        amount_lkr = 30000.0
-        amount_usd = 100.0
-        normalized_amount = (amount_usd - 25.0) / 20.0
-        features[29] = normalized_amount
-        fraud_label = "[FRAUD]"
+    # Inject fraud ring logic (20% chance)
+    is_fraud_ring = random.random() < 0.20
+    
+    if is_fraud_ring:
+        customer_id = random.choice(FRAUD_RING_CUSTOMERS)
+        ip_address = FRAUD_RING_IP
+        device_fingerprint = FRAUD_RING_DEVICE
+        shipping_address = "123 Fraud Lane, Colombo"
+        amount_lkr = 45000.0 # High value
+        fraud_label = "[RING]"
     else:
+        ip_address = f"10.0.{random.randint(1, 255)}.{random.randint(1, 255)}"
+        device_fingerprint = f"dev_{random.randint(1000, 9999)}"
+        shipping_address = f"{random.randint(1, 999)} Normal St"
         fraud_label = ""
     
     payload = {
-        "features": features,
         "metadata": {
-            "customer_id": random.randint(1, 6),
+            "customer_id": customer_id,
             "merchant": random.choice(["Amazon", "Netflix", "Uber", "Daraz", "Target"]),
-            "amount": amount_lkr
+            "amount": amount_lkr,
+            "merchant_category_code": "0000",
+            "merchant_country_code": "US" if not is_fraud_ring else "NG",
+            "currency": "LKR",
+            "transaction_type": "PURCHASE",
+            "pos_entry_mode": "05",
+            "terminal_id": f"TERM_{random.randint(100, 200)}",
+            "ip_address": ip_address,
+            "device_fingerprint": device_fingerprint,
+            "shipping_address": shipping_address
         }
     }
     
     try:
         response = requests.post(API_URL, json=payload, timeout=5)
-        if response.status_code == 200:
+        if response.status_code == 202:
             result = response.json()
             status = result.get('status', 'N/A')
-            score = result.get('fraud_score', 0.0)
-            
-            # Format output
-            status_mark = "[X]" if status == "Decline" else "[!]" if status == "Escalate" else "[+]"
-            print(f"Txn {i+1:02d} {fraud_label:<7} | LKR {amount_lkr:>8.2f} | Score {score:.4f} | {status_mark} {status}")
+            print(f"Txn {i+1:02d} {fraud_label:<7} | Cust {customer_id} | LKR {amount_lkr:>8.2f} | {status}")
         else:
-            print(f"Txn {i+1:02d}        [ERROR]")
+            print(f"Txn {i+1:02d}        [ERROR] {response.status_code} {response.text}")
     except Exception as e:
         print(f"Txn {i+1:02d}        [FAIL] {e}")
     
@@ -66,3 +71,4 @@ for i in range(30):
 
 print("\n" + "="*60)
 print("[*] Simulation complete!\n")
+

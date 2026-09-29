@@ -41,18 +41,29 @@
 # def root():
 #     return {"message": "Welcome to AI Powered Transaction Scrutinization Engine Backend"}
 
+import os
 import joblib
 import numpy as np
 from datetime import datetime, timedelta, date
 import random
 import warnings
 warnings.filterwarnings('ignore')
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_, String, cast
+import json
+import uuid
+# Kafka (optional — only needed for async pipeline; sync /api/score endpoint does not use it)
+try:
+    from kafka import KafkaProducer
+    KAFKA_AVAILABLE = True
+except ImportError:
+    KafkaProducer = None
+    KAFKA_AVAILABLE = False
+    print("ℹ️  kafka-python not installed. Async /api/predict endpoint disabled. Use /api/score instead.")
 
 # Deep Learning
 try:
@@ -61,6 +72,12 @@ try:
 except ImportError:
     TF_AVAILABLE = False
     print("⚠️  TensorFlow not available. Autoencoder will not be loaded.")
+
+# Numpy autoencoder (no TF dependency for cloud deployment)
+from app.services.autoencoder_numpy import load_numpy_autoencoder as _load_numpy_ae
+numpy_autoencoder = None
+numpy_ae_scaler = None
+numpy_ae_metadata = None
 
 # Import your existing modules
 from app.core.config import settings
@@ -84,17 +101,30 @@ ml_model = None                    # XGBoost model (known fraud patterns)
 autoencoder_model = None           # Autoencoder model (anomaly detection)
 autoencoder_scaler = None          # Scaler for autoencoder features
 autoencoder_metadata = None        # Metadata with thresholds
+feature_encoders = None            # Feature encoders for categorical data
 hybrid_mode_enabled = False        # Flag for hybrid prediction
+kafka_producer = None              # Kafka Producer instance
 
 # --- PYDANTIC MODELS ---
 class Metadata(BaseModel):
     customer_id: int
     merchant: str
+    merchant_category_code: str = "0000"
+    merchant_country_code: str = "US"
     amount: float
+    currency: str = "USD"
+    transaction_type: str = "PURCHASE"
+    pos_entry_mode: str = "05"
+    terminal_id: str = "000000"
+    moto_eci_indicator: str = "00"
+    three_d_secure: str = "N"
+    
+    # Graph-Based Fraud Fields
+    ip_address: str = None
+    device_fingerprint: str = None
+    shipping_address: str = None
 
 class TransactionRequest(BaseModel):
-    # The model expects a list of 30 numerical features (V1-V28, Time, Amount)
-    features: List[float]
     metadata: Metadata
 
 class TransactionResponse(BaseModel):
@@ -132,28 +162,50 @@ app.include_router(notif_router.router)
 # --- STARTUP EVENT (Database + AI Models Load) ---
 @app.on_event("startup")
 def startup_event():
-    global ml_model, autoencoder_model, autoencoder_scaler, autoencoder_metadata, hybrid_mode_enabled
+    global ml_model, autoencoder_model, autoencoder_scaler, autoencoder_metadata, feature_encoders, hybrid_mode_enabled
+    global numpy_autoencoder, numpy_ae_scaler, numpy_ae_metadata
     
     print("\n" + "="*70)
-    print("🚀 FRAUD DETECTION ENGINE STARTUP")
+    print(" FRAUD DETECTION ENGINE STARTUP")
     print("="*70)
     
     # 1. Connect to Database
     print("\n[1/3] Connecting to database...")
     try:
         with engine.connect() as connection:
-            print("     ✅ Database connected successfully")
+            print("     Database connected successfully")
     except Exception as e:
-        print(f"     ❌ Database connection failed: {e}")
+        print(f"     Database connection failed: {e}")
+
+
+    # 1.5 Connect to Kafka (optional — only needed for async /api/predict pipeline)
+    print("\n[1.5/3] Connecting to Kafka Producer...")
+    global kafka_producer
+    if not KAFKA_AVAILABLE:
+        print("     Kafka skipped (kafka-python not installed). Use /api/score for sync scoring.")
+    elif settings.KAFKA_BROKER_URL in ("disabled", "", None):
+        print("     Kafka skipped (KAFKA_BROKER_URL=disabled). Use /api/score for sync scoring.")
+    else:
+        try:
+            kafka_producer = KafkaProducer(
+                bootstrap_servers=settings.KAFKA_BROKER_URL,
+                value_serializer=lambda v: json.dumps(v).encode('utf-8')
+            )
+            print("     Kafka Producer connected successfully")
+        except Exception as e:
+            print(f"     Kafka connection failed (non-fatal): {e}")
+            print("     Use /api/score for synchronous scoring instead.")
+
 
     # 2. Load XGBoost Model (Supervised Learning - Known Frauds)
-    print("\n[2/3] Loading XGBoost model (supervised learning)...")
+    print("\n[2/3] Loading XGBoost model (supervised learning) and encoders...")
     try:
         ml_model = joblib.load("fraud_model.pkl")
-        print("     ✅ XGBoost model loaded successfully")
+        feature_encoders = joblib.load("feature_encoders.pkl")
+        print("     XGBoost model and encoders loaded successfully")
     except Exception as e:
-        print(f"     ❌ Failed to load XGBoost model: {e}")
-        print("     ⚠️  System will operate without XGBoost")
+        print(f"     Failed to load XGBoost model: {e}")
+        print("     System will operate without XGBoost")
 
     # 3. Load Autoencoder Model (Unsupervised Learning - Anomalies)
     print("\n[3/3] Loading Autoencoder model (unsupervised learning)...")
@@ -167,14 +219,14 @@ def startup_event():
         # Try new Keras format first
         try:
             autoencoder_model = load_model("autoencoder_model.keras")
-            print("     ✅ Autoencoder loaded (keras format)")
+            print("     Autoencoder loaded (keras format)")
         except:
             # Fall back to old HDF5 format
             try:
                 autoencoder_model = load_model("autoencoder_model.h5")
-                print("     ✅ Autoencoder loaded (h5 format)")
+                print("     Autoencoder loaded (h5 format)")
             except Exception as e:
-                print(f"     ⚠️  Could not load Autoencoder: {e}")
+                print(f"     Could not load Autoencoder: {e}")
                 autoencoder_model = None
         
         if autoencoder_model is not None:
@@ -187,17 +239,31 @@ def startup_event():
             if ml_model is not None and autoencoder_model is not None:
                 hybrid_mode_enabled = True
                 print("\n" + "="*70)
-                print("🎯 HYBRID FRAUD DETECTION ENABLED")
+                print(" HYBRID FRAUD DETECTION ENABLED")
                 print("    • XGBoost: Known fraud patterns")
                 print("    • Autoencoder: Zero-day anomaly detection")
                 print("="*70 + "\n")
         
     except Exception as e:
-        print(f"     ⚠️  Autoencoder not available: {e}")
+        print(f"     Autoencoder not available: {e}")
         print("     (System will use XGBoost only for fraud detection)")
         autoencoder_model = None
         autoencoder_scaler = None
         hybrid_mode_enabled = False
+
+    # Load numpy autoencoder (TF-free, cloud-compatible)
+    # Weights live in backend/ (parent of the app/ package directory)
+    print("\n[4/3] Loading NumPy autoencoder (cloud-compatible)...")
+    try:
+        _backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        numpy_autoencoder, numpy_ae_scaler, numpy_ae_metadata = _load_numpy_ae(_backend_dir)
+        if numpy_autoencoder:
+            print(f"     NumPy autoencoder loaded successfully (backend dir: {_backend_dir})")
+        else:
+            print("     NumPy autoencoder not available (weights not extracted yet)")
+    except Exception as e:
+        print(f"     NumPy autoencoder load failed: {e}")
+
 
 @app.get("/")
 def root():
@@ -396,180 +462,58 @@ def get_customer_ids(db: Session = Depends(get_db)):
     customers = db.query(Customer).filter(Customer.is_active == True).all()
     return [c.id for c in customers]
 
-# --- NEW AI ENDPOINT (HYBRID: XGBoost + Autoencoder) ---
-@app.post("/api/predict", response_model=TransactionResponse)
+# --- NEW ASYNC AI ENDPOINT (Producer) ---
+@app.post("/api/predict", status_code=status.HTTP_202_ACCEPTED)
 def predict_fraud(txn: TransactionRequest, db: Session = Depends(get_db)):
     """
-    Hybrid Fraud Detection: XGBoost (Known Patterns) + Autoencoder (Anomalies)
-    
-    Flow:
-    1. XGBoost Path: Fast pattern matching against known fraud signatures
-    2. Autoencoder Path: Detects anomalies (zero-day attacks)
-    3. Hybrid Score: Weighted combination of both models
-    4. Decision: Based on configurable thresholds
+    Asynchronous Fraud Ingestion Endpoint.
+    Pushes transaction to Kafka for background processing by consumer workers.
     """
     import time
+    from app.core.cache import check_and_update_velocity, update_geolocation, check_if_foreign
     
-    # Model availability check
-    if not ml_model and not autoencoder_model:
-        raise HTTPException(status_code=500, detail="No ML models loaded")
+    if not kafka_producer:
+        # Graceful fallback to real-time synchronous scoring when Kafka is not active
+        return score_transaction_sync(txn, BackgroundTasks(), db)
 
     try:
         start_time = time.time()
+        customer_id = txn.metadata.customer_id
         
-        # ===== STEP 1: FREEZE CHECK =====
-        customer = db.query(Customer).filter(Customer.id == txn.metadata.customer_id).first()
-        if customer and customer.is_frozen:
-            return {
-                "fraud_score": 1.0,
-                "status": "Decline",
-                "decision_reason": "❌ Customer Card is FROZEN"
-            }
-
-        # ===== STEP 1b: MERCHANT WHITELIST CHECK =====
-        # Whitelisted merchants bypass AI entirely and are auto-approved
-        whitelist_entry = db.query(MerchantWhitelist).filter(
-            func.lower(MerchantWhitelist.merchant_name) == func.lower(txn.metadata.merchant)
-        ).first()
-        if whitelist_entry:
-            return {
-                "fraud_score": 0.0,
-                "status": "Approve",
-                "decision_reason": f"✅ Trusted Merchant — Whitelist Bypass",
-            }
-
-        # ===== STEP 2: PREPARE FEATURES =====
-        features_array = np.array(txn.features).reshape(1, -1)
+        # Fast DB/Cache checks
+        customer = db.query(Customer).filter(Customer.id == customer_id).first()
+        is_frozen = customer.is_frozen if customer else False
         
-        # NOTE: Simulator now sends normalized features including normalized USD amount
-        # No currency conversion needed here anymore
-        # features_array[0][29] is already normalized (not LKR raw value)
-
-        # Initialize scores
-        xgboost_score = 0.0
-        autoencoder_score = 0.0
-        reconstruction_error = 0.0
-
-        # ===== STEP 3: PATH 1 - XGBoost (Supervised Learning) =====
-        if ml_model is not None:
-            try:
-                xgboost_score = float(ml_model.predict_proba(features_array)[0][1])
-            except Exception as e:
-                print(f"⚠️  XGBoost prediction failed: {e}")
-                xgboost_score = 0.0
+        # Fast Redis Caching Layer for Velocity and Geolocation
+        velocity_1h = check_and_update_velocity(customer_id)
+        is_foreign = check_if_foreign(customer_id, txn.metadata.merchant_country_code)
+        update_geolocation(customer_id, txn.metadata.merchant_country_code)
         
-        # ===== STEP 4: PATH 2 - Autoencoder (Unsupervised Learning) =====
-        if autoencoder_model is not None and autoencoder_scaler is not None:
-            try:
-                # Normalize features using the scaler
-                # IMPORTANT: Create a copy to avoid modifying original features_array
-                features_to_scale = features_array.copy()
-                features_scaled = autoencoder_scaler.transform(features_to_scale)
-                
-                # Validate scaled features are in expected range
-                # After StandardScaler, should be roughly [-3, 3] for normal transactions
-                scaled_mean = np.mean(features_scaled)
-                scaled_std = np.std(features_scaled)
-                scaled_max = np.max(np.abs(features_scaled))
-                
-                # If scaled features look very abnormal, skip Autoencoder
-                if scaled_max > 100:  # Way outside expected range
-                    # Features are broken somehow
-                    reconstruction_error = 999.0  # Indicate error
-                    autoencoder_score = 1.0  # Maximum anomaly
-                else:
-                    # Get reconstruction from autoencoder
-                    reconstruction = autoencoder_model.predict(features_scaled, verbose=0)
-                    
-                    # Calculate Mean Squared Error (reconstruction error)
-                    # For normalized features, MSE should typically be 0.01-0.10
-                    reconstruction_error_raw = np.mean(np.power(features_scaled - reconstruction, 2))
-                    reconstruction_error = float(reconstruction_error_raw)
-                    
-                    # Validate reconstruction error (should be reasonable for normalized features)
-                    # If error is abnormally high (>1.0), something went wrong
-                    if reconstruction_error > 1.0:
-                        # Use max threshold as fallback - likely an anomaly or data issue
-                        autoencoder_score = 1.0
-                    else:
-                        # Normalize reconstruction error to 0-1 scale
-                        threshold = autoencoder_metadata.get('reconstruction_threshold', 0.5)
-                        autoencoder_score = min(reconstruction_error / threshold, 1.0)
-                
-            except Exception as e:
-                print(f"⚠️  Autoencoder prediction failed: {e}")
-                autoencoder_score = 0.0
-
-        # ===== STEP 5: HYBRID SCORE CALCULATION =====
-        if hybrid_mode_enabled and ml_model is not None and autoencoder_model is not None:
-            # Weighted ensemble: 60% known patterns, 40% anomalies
-            hybrid_score = (0.6 * xgboost_score) + (0.4 * autoencoder_score)
-            model_explanation = f"XGB:{xgboost_score:.2f}|AE:{autoencoder_score:.2f}"
-        elif ml_model is not None:
-            # XGBoost only
-            hybrid_score = xgboost_score
-            model_explanation = f"XGB:{xgboost_score:.2f}"
-        elif autoencoder_model is not None:
-            # Autoencoder only
-            hybrid_score = autoencoder_score
-            model_explanation = f"AE:{autoencoder_score:.2f}"
-        else:
-            hybrid_score = 0.0
-            model_explanation = "NO_MODEL"
-
-        # ===== STEP 6: FETCH THRESHOLDS =====
-        decline_threshold = 0.70
-        review_threshold = 0.50
+        # Construct message
+        transaction_id = str(uuid.uuid4())
+        message = {
+            "transaction_id": transaction_id,
+            "metadata": txn.metadata.dict(),
+            "features": {
+                "velocity_1h": velocity_1h,
+                "is_foreign": is_foreign,
+                "is_frozen": is_frozen
+            },
+            "ingestion_time": start_time
+        }
         
-        config_decline = db.query(SystemConfig).filter(SystemConfig.key == "fraud_threshold_decline").first()
-        if config_decline:
-            decline_threshold = float(config_decline.value)
-
-        config_review = db.query(SystemConfig).filter(SystemConfig.key == "fraud_threshold_review").first()
-        if config_review:
-            review_threshold = float(config_review.value)
-
-        # ===== STEP 7: DECISION LOGIC =====
-        if hybrid_score >= decline_threshold:
-            status = "Decline"
-            decision_reason = f"🚨 Critical Risk | {model_explanation}"
-        elif hybrid_score >= review_threshold:
-            status = "Escalate"
-            decision_reason = f"⚠️  Medium Risk | {model_explanation}"
-        else:
-            status = "Approve"
-            decision_reason = f"✅ Low Risk | {model_explanation}"
-
-        # ===== STEP 8: SAVE TO DATABASE =====
-        end_time = time.time()
-        processing_time_ms = (end_time - start_time) * 1000
+        # Push to Kafka (Fire & Forget)
+        kafka_producer.send("transactions_inbound", message)
         
-        new_txn = Transaction(
-            customer_id=txn.metadata.customer_id,
-            merchant=txn.metadata.merchant,
-            amount=txn.metadata.amount,
-            fraud_score=round(hybrid_score, 4),
-            xgboost_score=round(xgboost_score, 4),
-            autoencoder_score=round(autoencoder_score, 4),
-            reconstruction_error=round(reconstruction_error, 6),
-            status=status,
-            processing_time_ms=processing_time_ms
-        )
-        db.add(new_txn)
-        db.commit()
-        db.refresh(new_txn)
-        
-        # ===== STEP 9: TRIGGER NOTIFICATIONS =====
-        notification_service.check_and_notify(db, new_txn)
-
+        # Return HTTP 202 Accepted immediately
         return {
-            "fraud_score": round(hybrid_score, 4),
-            "status": status,
-            "decision_reason": decision_reason
+            "fraud_score": 0.0, # Dummy for backwards compatibility with simulator
+            "status": "Processing",
+            "decision_reason": f"⏳ Transaction queued for ML inference"
         }
 
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Prediction Error: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Ingestion Error: {str(e)}")
 
 @app.get("/api/transactions/recent")
 def get_recent_transactions(limit: int = 10, db: Session = Depends(get_db)):
@@ -592,6 +536,42 @@ def get_recent_transactions(limit: int = 10, db: Session = Depends(get_db)):
             "card_last_four": cust.card_last_four
         })
     return formatted_transactions
+
+@app.get("/api/investigations")
+def get_investigations(db: Session = Depends(get_db)):
+    # Get all transactions that were declined or escalated, ordered by most recent
+    results = db.query(Transaction, Customer)\
+        .join(Customer, Transaction.customer_id == Customer.id)\
+        .filter(Transaction.status.in_(['Decline', 'Escalate']))\
+        .order_by(Transaction.timestamp.desc())\
+        .limit(50).all()
+    
+    formatted_investigations = []
+    import json
+    for txn, cust in results:
+        shap_explanation = None
+        if txn.shap_explanation:
+            try:
+                shap_explanation = json.loads(txn.shap_explanation)
+            except:
+                pass
+                
+        formatted_investigations.append({
+            "id": txn.id,
+            "customer_id": txn.customer_id,
+            "merchant": txn.merchant,
+            "amount": txn.amount,
+            "timestamp": txn.timestamp,
+            "fraud_score": txn.fraud_score,
+            "xgboost_score": txn.xgboost_score,
+            "autoencoder_score": txn.autoencoder_score,
+            "status": txn.status,
+            "customer_name": cust.full_name,
+            "card_type": cust.card_type,
+            "card_last_four": cust.card_last_four,
+            "shap_explanation": shap_explanation
+        })
+    return formatted_investigations
 
 @app.get("/api/transactions")
 def get_transactions(
@@ -773,6 +753,283 @@ def get_fraud_trends(db: Session = Depends(get_db)):
 
 class NewsletterSubscribeRequest(BaseModel):
     email: str
+
+# ─── SYNCHRONOUS SCORE ENDPOINT (no Kafka required) ───────────────────────────
+# Implements gap-free decision policy:
+#   score >= DECLINE_THRESHOLD  →  Decline
+#   score >= REVIEW_THRESHOLD   →  Escalate
+#   score <  REVIEW_THRESHOLD   →  Approve
+#
+# BRD AMBIGUITY NOTE: The BRD specified thresholds with gaps (0.50 and 0.70-0.71
+# were uncovered). This implementation uses a contiguous, gap-free policy:
+#   Default decline threshold: 0.70 (BRD said 0.71; 0.70 chosen conservatively)
+#   Default review threshold:  0.50 (BRD's gap at exactly 0.50 → Escalate is safer)
+# Both thresholds are configurable via /api/config/thresholds.
+
+import time as _time_module
+
+DEFAULT_FEATURE_NAMES = [
+    "amount", "hour_of_day", "velocity_1h", "is_foreign",
+    "merchant_category_code", "pos_entry_mode", "currency",
+    "moto_eci_indicator", "three_d_secure"
+]
+
+def _safe_encode_inline(col: str, val: str) -> float:
+    """Encode a categorical value using the loaded feature encoders."""
+    if feature_encoders and col in feature_encoders:
+        le = feature_encoders[col]
+        val_str = str(val)
+        if val_str in le.classes_:
+            return float(le.transform([val_str])[0])
+    return 0.0  # Unknown category → safe default
+
+
+@app.post("/api/score", response_model=None)
+def score_transaction_sync(
+    txn: TransactionRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    Synchronous fraud scoring endpoint.
+    Performs inline ML inference — no Kafka required.
+    Returns the fraud score, decision, and reasons immediately.
+
+    Decision policy (gap-free, configurable):
+      score >= decline_threshold  →  Decline
+      score >= review_threshold   →  Escalate
+      score <  review_threshold   →  Approve
+
+    NOTE: This system uses synthetic demo data. Do not use for real payment authorization.
+    """
+    t_start = _time_module.perf_counter()
+
+    meta = txn.metadata
+    customer_id = meta.customer_id
+
+    # ── 1. Load thresholds from DB (configurable) ─────────────────────────
+    try:
+        cfg_decline = db.query(SystemConfig).filter(SystemConfig.key == "fraud_threshold_decline").first()
+        cfg_review  = db.query(SystemConfig).filter(SystemConfig.key == "fraud_threshold_review").first()
+        decline_threshold = float(cfg_decline.value) if cfg_decline else 0.70
+        review_threshold  = float(cfg_review.value)  if cfg_review  else 0.50
+    except Exception:
+        decline_threshold, review_threshold = 0.70, 0.50
+
+    # ── 2. Check customer / first-time card safely ────────────────────────
+    try:
+        customer = db.query(Customer).filter(Customer.id == customer_id).first()
+        if not customer:
+            # First-time card/customer: safely initialize record to satisfy foreign key
+            customer = Customer(
+                id=customer_id,
+                full_name=f"Customer #{customer_id}",
+                email=f"customer_{customer_id}_{uuid.uuid4().hex[:6]}@demo.local",
+                card_type="Visa",
+                card_last_four="4242",
+                risk_score=0.0,
+                is_frozen=False,
+                is_active=True
+            )
+            db.add(customer)
+            db.commit()
+            db.refresh(customer)
+    except Exception:
+        db.rollback()
+        try:
+            customer = db.query(Customer).filter(Customer.id == customer_id).first()
+        except Exception:
+            customer = None
+
+    if customer and customer.is_frozen:
+        proc_ms = (_time_module.perf_counter() - t_start) * 1000
+        # Persist the frozen-card decline
+        new_txn = Transaction(
+            customer_id=customer.id if customer else None,
+            merchant=meta.merchant,
+            merchant_category_code=meta.merchant_category_code,
+            merchant_country_code=meta.merchant_country_code,
+            amount=meta.amount,
+            currency=meta.currency,
+            transaction_type=meta.transaction_type,
+            pos_entry_mode=meta.pos_entry_mode,
+            terminal_id=meta.terminal_id,
+            moto_eci_indicator=meta.moto_eci_indicator,
+            three_d_secure=meta.three_d_secure,
+            fraud_score=1.0,
+            xgboost_score=0.0,
+            autoencoder_score=0.0,
+            status="Decline",
+            processing_time_ms=proc_ms,
+            shap_explanation=None,
+            ip_address=meta.ip_address,
+            device_fingerprint=meta.device_fingerprint,
+            shipping_address=meta.shipping_address,
+        )
+        try:
+            db.add(new_txn); db.commit(); db.refresh(new_txn)
+            background_tasks.add_task(notification_service.check_and_notify, db, new_txn)
+        except Exception:
+            db.rollback()
+        return {
+            "transaction_id": new_txn.id if new_txn.id else None,
+            "fraud_score": 1.0,
+            "xgboost_score": 0.0,
+            "autoencoder_score": 0.0,
+            "status": "Decline",
+            "decision_reason": "Card is frozen — all transactions blocked",
+            "reason_codes": ["FROZEN_CARD"],
+            "model_version": "xgboost-v1",
+            "processing_time_ms": round(proc_ms, 2),
+            "thresholds": {"decline": decline_threshold, "review": review_threshold},
+        }
+
+    # ── 3. Velocity + Geo (Redis, degrades gracefully) ─────────────────────
+    from app.core.cache import check_and_update_velocity, check_if_foreign, update_geolocation
+    velocity_1h = check_and_update_velocity(customer_id)
+    is_foreign  = check_if_foreign(customer_id, meta.merchant_country_code)
+    update_geolocation(customer_id, meta.merchant_country_code)
+
+    # ── 4. Build feature vector ────────────────────────────────────────────
+    hour_of_day = datetime.now().hour
+    features_list = [
+        float(meta.amount),
+        float(hour_of_day),
+        float(velocity_1h),
+        float(is_foreign),
+        _safe_encode_inline('merchant_category_code', meta.merchant_category_code),
+        _safe_encode_inline('pos_entry_mode',         meta.pos_entry_mode),
+        _safe_encode_inline('currency',               meta.currency),
+        _safe_encode_inline('moto_eci_indicator',     meta.moto_eci_indicator),
+        _safe_encode_inline('three_d_secure',         meta.three_d_secure),
+    ]
+    X = np.array(features_list).reshape(1, -1)
+
+    # ── 5. XGBoost inference ───────────────────────────────────────────────
+    xgboost_score = 0.0
+    shap_json = None
+    if ml_model is not None:
+        try:
+            xgboost_score = float(ml_model.predict_proba(X)[0][1])
+            # SHAP explanation
+            try:
+                import shap as _shap
+                explainer = _shap.TreeExplainer(ml_model)
+                shap_vals = explainer.shap_values(X)
+                contribs = list(zip(DEFAULT_FEATURE_NAMES, shap_vals[0]))
+                contribs.sort(key=lambda x: x[1], reverse=True)
+                top3 = {f: round(float(v), 4) for f, v in contribs[:3] if v > 0}
+                shap_json = json.dumps(top3) if top3 else None
+            except Exception:
+                pass  # SHAP failure is non-fatal
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Model inference error: {e}")
+    else:
+        raise HTTPException(status_code=503, detail="ML model not loaded. Run training first.")
+
+    # ── 6. Numpy Autoencoder inference (TF-free) ───────────────────────────
+    autoencoder_score = 0.0
+    ae_source = "none"
+    if numpy_autoencoder is not None and numpy_ae_scaler is not None:
+        try:
+            X_scaled = numpy_ae_scaler.transform(X)
+            if np.max(np.abs(X_scaled)) > 100:
+                autoencoder_score = 1.0
+            else:
+                recon_err = float(numpy_autoencoder.reconstruction_error(X_scaled)[0])
+                threshold = numpy_ae_metadata.get('reconstruction_threshold', 0.5)
+                autoencoder_score = min(recon_err / threshold, 1.0)
+            ae_source = "numpy"
+        except Exception:
+            pass
+    elif autoencoder_model is not None and autoencoder_scaler is not None:
+        # Fallback: TF autoencoder if available
+        try:
+            X_scaled = autoencoder_scaler.transform(X)
+            reconstruction = autoencoder_model.predict(X_scaled, verbose=0)
+            recon_err = float(np.mean(np.power(X_scaled - reconstruction, 2)))
+            threshold = autoencoder_metadata.get('reconstruction_threshold', 0.5)
+            autoencoder_score = min(recon_err / threshold, 1.0)
+            ae_source = "tensorflow"
+        except Exception:
+            pass
+
+    # ── 7. Hybrid score: XGBoost dominant, AE secondary ───────────────────
+    if ae_source != "none":
+        fraud_score = round((0.65 * xgboost_score) + (0.35 * autoencoder_score), 4)
+        model_used = f"hybrid-xgb+ae({ae_source})"
+    else:
+        fraud_score = round(xgboost_score, 4)
+        model_used = "xgboost-only"
+
+    # ── 8. Gap-free decision policy ────────────────────────────────────────
+    # BRD had gaps at 0.50 and 0.70-0.71. This is fully contiguous:
+    if fraud_score >= decline_threshold:
+        status = "Decline"
+        reason_codes = ["HIGH_FRAUD_SCORE"]
+        if is_foreign:
+            reason_codes.append("FOREIGN_TRANSACTION")
+        if velocity_1h >= 3:
+            reason_codes.append("HIGH_VELOCITY")
+    elif fraud_score >= review_threshold:
+        status = "Escalate"
+        reason_codes = ["MEDIUM_FRAUD_SCORE"]
+        if is_foreign:
+            reason_codes.append("FOREIGN_TRANSACTION")
+    else:
+        status = "Approve"
+        reason_codes = ["LOW_RISK"]
+
+    # ── 9. Persist to database ─────────────────────────────────────────────
+    proc_ms = (_time_module.perf_counter() - t_start) * 1000
+    new_txn = Transaction(
+        customer_id=customer.id if customer else None,
+        merchant=meta.merchant,
+        merchant_category_code=meta.merchant_category_code,
+        merchant_country_code=meta.merchant_country_code,
+        amount=meta.amount,
+        currency=meta.currency,
+        transaction_type=meta.transaction_type,
+        pos_entry_mode=meta.pos_entry_mode,
+        terminal_id=meta.terminal_id,
+        moto_eci_indicator=meta.moto_eci_indicator,
+        three_d_secure=meta.three_d_secure,
+        fraud_score=fraud_score,
+        xgboost_score=round(xgboost_score, 4),
+        autoencoder_score=round(autoencoder_score, 4),
+        status=status,
+        processing_time_ms=round(proc_ms, 2),
+        shap_explanation=shap_json,
+        ip_address=meta.ip_address,
+        device_fingerprint=meta.device_fingerprint,
+        shipping_address=meta.shipping_address,
+    )
+    try:
+        db.add(new_txn)
+        db.commit()
+        db.refresh(new_txn)
+        background_tasks.add_task(notification_service.check_and_notify, db, new_txn)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+
+    return {
+        "transaction_id": new_txn.id,
+        "fraud_score": fraud_score,
+        "xgboost_score": round(xgboost_score, 4),
+        "autoencoder_score": round(autoencoder_score, 4),
+        "status": status,
+        "decision_reason": f"{status} | XGB:{xgboost_score:.3f} AE:{autoencoder_score:.3f} | {'Foreign' if is_foreign else 'Domestic'} | Velocity:{velocity_1h}",
+        "reason_codes": reason_codes,
+        "shap_explanation": json.loads(shap_json) if shap_json else None,
+        "model_version": model_used,
+        "processing_time_ms": round(proc_ms, 2),
+        "thresholds": {
+            "decline": decline_threshold,
+            "review": review_threshold,
+            "policy_note": "Gap-free: score>=decline->Decline, score>=review->Escalate, else Approve"
+        },
+    }
 
 from app.utils.email_utils import send_welcome_email
 

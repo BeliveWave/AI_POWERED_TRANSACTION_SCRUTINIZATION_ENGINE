@@ -11,10 +11,11 @@ import SystemAdmin from "./pages/SystemAdmin.jsx";
 import ProfileSettings from "./pages/ProfileSettings.jsx";
 import Help from "./pages/Help.jsx";
 import Login from "./pages/Login.jsx";
+import Investigator from "./pages/Investigator.jsx";
 import Register from "./pages/Register.jsx";
 import Landing from "./pages/Landing.jsx";
 import { AuthProvider, useAuth } from "./hooks/useAuth.jsx";
-import TopNav from "./components/Layout/TopNav.jsx";
+import AppLayout from "./components/Layout/AppLayout.jsx";
 import SessionTimeout from "./components/Common/SessionTimeout.jsx";
 import { ThemeProvider, useTheme } from "./hooks/useTheme.jsx";
 
@@ -35,24 +36,22 @@ const AppContent = () => {
 
   return (
     <>
-      <div className="min-h-screen bg-gray-50 dark:bg-[#0B1120] transition-colors duration-300">
-        <TopNav />
-        <main className="p-6">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/customers" element={<Customers />} />
-            <Route path="/configuration" element={<Configuration />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/system-admin" element={<SystemAdmin />} />
-            <Route path="/profile" element={<ProfileSettings />} />
-            <Route path="/help" element={<Help />} />
-          </Routes>
-        </main>
-      </div>
+      <AppLayout>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/transactions" element={<Transactions />} />
+          <Route path="/investigator" element={<Investigator />} />
+          <Route path="/customers" element={<Customers />} />
+          <Route path="/configuration" element={<Configuration />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/system-admin" element={<SystemAdmin />} />
+          <Route path="/profile" element={<ProfileSettings />} />
+          <Route path="/help" element={<Help />} />
+        </Routes>
+      </AppLayout>
       <SessionTimeout isLoggedIn={isLoggedIn} onLogout={logout} />
-      <ToastContainer position="top-right" autoClose={3000} theme={theme === 'dark' ? 'dark' : 'colored'} />
+      <ToastContainer position="top-right" autoClose={3000} theme={theme === 'dark' ? 'dark' : 'light'} />
     </>
   );
 };
