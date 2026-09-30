@@ -19,7 +19,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from '../components/ui/dialog.jsx';
-import { API_BASE_URL } from '../services/api';
 
 const Transactions = () => {
   const [selectedTransaction, setSelectedTransaction] = useState(null);
@@ -42,7 +41,7 @@ const Transactions = () => {
       if (filters.status !== 'All') queryParams.append('decision', filters.status);
       queryParams.append('date_filter', filters.date);
 
-      const response = await fetch(`${API_BASE_URL}/api/transactions?${queryParams}`);
+      const response = await fetch(`http://localhost:8000/api/transactions?${queryParams}`);
       if (response.ok) {
         const data = await response.json();
         setTransactions(data);
@@ -58,7 +57,7 @@ const Transactions = () => {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/admin/config`);
+        const response = await fetch('http://localhost:8000/api/admin/config');
         if (response.ok) {
           const configs = await response.json();
           const declineConfig = configs.find(c => c.key === 'fraud_threshold_decline');
@@ -84,7 +83,7 @@ const Transactions = () => {
     if (!selectedTransaction) return;
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/transactions/${selectedTransaction.id}/decide?decision=${decision}`,
+        `http://localhost:8000/api/transactions/${selectedTransaction.id}/decide?decision=${decision}`,
         { method: 'POST' }
       );
       if (response.ok) {

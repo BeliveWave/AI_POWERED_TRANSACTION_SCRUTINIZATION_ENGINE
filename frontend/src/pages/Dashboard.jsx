@@ -7,7 +7,6 @@ import { Badge } from '../components/ui/badge.jsx';
 import { Button } from '../components/ui/button.jsx';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../components/ui/dialog.jsx';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/table.jsx';
-import { API_BASE_URL } from '../services/api';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -26,7 +25,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/transactions/recent`);
+        const response = await fetch('http://localhost:8000/api/transactions/recent');
         if (response.ok) {
           const data = await response.json();
           const mappedTxns = data.map(txn => ({
@@ -49,19 +48,19 @@ const Dashboard = () => {
 
     const fetchDashboardData = async () => {
       try {
-        const statsRes = await fetch(`${API_BASE_URL}/api/dashboard/stats`);
+        const statsRes = await fetch('http://localhost:8000/api/dashboard/stats');
         if (statsRes.ok) {
           const statsJson = await statsRes.json();
           setStats(statsJson);
         }
 
-        const trendsRes = await fetch(`${API_BASE_URL}/api/dashboard/trends`);
+        const trendsRes = await fetch('http://localhost:8000/api/dashboard/trends');
         if (trendsRes.ok) {
           const trendsJson = await trendsRes.json();
           setGraphData(trendsJson);
         }
 
-        const riskRes = await fetch(`${API_BASE_URL}/api/dashboard/risky-merchants`);
+        const riskRes = await fetch('http://localhost:8000/api/dashboard/risky-merchants');
         if (riskRes.ok) {
           const riskJson = await riskRes.json();
           setRiskyMerchants(riskJson);
