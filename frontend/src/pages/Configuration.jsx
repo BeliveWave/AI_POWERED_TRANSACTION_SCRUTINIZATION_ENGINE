@@ -10,9 +10,7 @@ import { Badge } from '../components/ui/badge.jsx';
 import { Input } from '../components/ui/input.jsx';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs.jsx';
 
-import { API_BASE_URL } from '../services/api';
-
-const API = API_BASE_URL;
+const API = 'http://localhost:8000';
 const getToken = () => localStorage.getItem('token') || localStorage.getItem('access_token') || '';
 
 const SVC_ICON = {

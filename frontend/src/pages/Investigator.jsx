@@ -3,7 +3,6 @@ import { AlertTriangle, Clock, RefreshCw, Activity, ArrowRight } from 'lucide-re
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card.jsx';
 import { Badge } from '../components/ui/badge.jsx';
 import { Button } from '../components/ui/button.jsx';
-import { API_BASE_URL } from '../services/api';
 
 const Investigator = () => {
   const [investigations, setInvestigations] = useState([]);
@@ -13,7 +12,7 @@ const Investigator = () => {
   const fetchInvestigations = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/investigations`);
+      const response = await fetch('http://localhost:8000/api/investigations');
       if (response.ok) {
         const data = await response.json();
         setInvestigations(data);

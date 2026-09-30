@@ -19,7 +19,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from '../components/ui/dialog.jsx';
-import { API_BASE_URL } from '../services/api';
 
 const Customers = () => {
   const [customers, setCustomers] = useState([]);
@@ -35,7 +34,7 @@ const Customers = () => {
       if (searchQuery) queryParams.append('search', searchQuery);
       if (filterType !== 'all') queryParams.append('risk_filter', filterType);
 
-      const response = await fetch(`${API_BASE_URL}/api/customers?${queryParams}`);
+      const response = await fetch(`http://localhost:8000/api/customers?${queryParams}`);
       if (response.ok) {
         const data = await response.json();
         const mappedCustomers = data.map(c => ({
@@ -66,7 +65,7 @@ const Customers = () => {
 
   const handleFreeze = async (customer) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/customers/${customer.id}/freeze`, {
+      const response = await fetch(`http://localhost:8000/api/customers/${customer.id}/freeze`, {
         method: 'POST'
       });
       if (response.ok) {
@@ -82,7 +81,7 @@ const Customers = () => {
   const handleDeactivate = async (customer) => {
     if (!window.confirm(`Are you sure you want to deactivate ${customer.name}?`)) return;
     try {
-      const response = await fetch(`${API_BASE_URL}/api/customers/${customer.id}/deactivate`, {
+      const response = await fetch(`http://localhost:8000/api/customers/${customer.id}/deactivate`, {
         method: 'POST'
       });
       if (response.ok) {
@@ -105,7 +104,7 @@ const Customers = () => {
         card_type: newCustomerStr.cardType,
         card_last_four: newCustomerStr.cardLastFour
       });
-      const response = await fetch(`${API_BASE_URL}/api/customers?${queryParams}`, {
+      const response = await fetch(`http://localhost:8000/api/customers?${queryParams}`, {
         method: 'POST'
       });
       if (response.ok) {
