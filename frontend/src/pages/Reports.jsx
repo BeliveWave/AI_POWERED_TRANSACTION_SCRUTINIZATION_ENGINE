@@ -5,7 +5,9 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../co
 import { Button } from '../components/ui/button.jsx';
 import { Badge } from '../components/ui/badge.jsx';
 
-const API = 'http://localhost:8000';
+import { API_BASE_URL } from '../services/api';
+
+const API = API_BASE_URL;
 const getToken = () => localStorage.getItem('token') || '';
 
 const REPORTS = [
