@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { toast } from 'react-toastify';
+import { toast } from '../components/ui/toast.jsx';
 import {
   Shield, ShoppingBag, Globe, Plus, X, Save, RefreshCw,
   Server, Database, Brain, Zap, CheckCircle, AlertTriangle, XCircle, Activity, Bell
@@ -9,8 +9,9 @@ import { Button } from '../components/ui/button.jsx';
 import { Badge } from '../components/ui/badge.jsx';
 import { Input } from '../components/ui/input.jsx';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs.jsx';
+import { API_BASE_URL } from '../services/api.js';
 
-const API = 'http://localhost:8000';
+const API = API_BASE_URL;
 const getToken = () => localStorage.getItem('token') || localStorage.getItem('access_token') || '';
 
 const SVC_ICON = {

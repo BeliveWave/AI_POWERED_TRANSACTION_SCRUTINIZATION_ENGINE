@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
-import { ShieldCheck, ShieldAlert, KeyRound, Bell, Moon, Sun, Upload } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, KeyRound, Bell, Moon, Sun, Upload, Lock, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card.jsx';
 import { Button } from '../components/ui/button.jsx';
 import { Badge } from '../components/ui/badge.jsx';
 import { Input } from '../components/ui/input.jsx';
-import { useAuth } from '../hooks/useAuth';
-import api from '../services/api';
-import { toast } from 'react-toastify';
-import { useTheme } from '../hooks/useTheme';
+import { useAuth } from '../hooks/useAuth.jsx';
+import api from '../services/api.js';
+import { toast } from '../components/ui/toast.jsx';
+import { useTheme } from '../hooks/useTheme.jsx';
 
 const ProfileSettings = () => {
-  const { user } = useAuth();
+  const { user, changePassword } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,6 +21,13 @@ const ProfileSettings = () => {
   const [twoFaSecret, setTwoFaSecret] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [show2FASetup, setShow2FASetup] = useState(false);
+
+  // Password Change State
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   // Notifications State
   const [notifyEmailHighRisk, setNotifyEmailHighRisk] = useState(false);
@@ -34,11 +41,15 @@ const ProfileSettings = () => {
 
   const fetchProfile = async () => {
     try {
-      const res = await api.get('/auth/me');
+      const res = await api.get('/api/auth/me');
       setProfile(res.data);
       if (res.data.notification_preferences) {
-        const prefs = JSON.parse(res.data.notification_preferences);
-        setNotifyEmailHighRisk(prefs.email_high_risk || false);
+        try {
+          const prefs = JSON.parse(res.data.notification_preferences);
+          setNotifyEmailHighRisk(prefs.email_high_risk || false);
+        } catch {
+          // Ignore json parse error
+        }
       }
       setAvatarUrl(localStorage.getItem(`avatar_${res.data.username}`) || res.data.avatar || '');
     } catch (err) {
@@ -51,7 +62,7 @@ const ProfileSettings = () => {
 
   const handleGenerate2FA = async () => {
     try {
-      const res = await api.post('/auth/2fa/generate');
+      const res = await api.post('/api/auth/2fa/generate');
       setQrCodeUrl(res.data.uri);
       setTwoFaSecret(res.data.secret);
       setShow2FASetup(true);
@@ -63,7 +74,7 @@ const ProfileSettings = () => {
   const handleEnable2FA = async () => {
     if (!otpCode) return toast.warning("Enter the 6-digit TOTP code from your authenticator");
     try {
-      await api.post('/auth/2fa/enable', { code: otpCode });
+      await api.post('/api/auth/2fa/enable', { code: otpCode.trim() });
       toast.success("Two-Factor Authentication enabled");
       setShow2FASetup(false);
       setOtpCode('');
@@ -76,7 +87,7 @@ const ProfileSettings = () => {
   const handleDisable2FA = async () => {
     if (!window.confirm("Are you sure you want to disable Two-Factor Authentication?")) return;
     try {
-      await api.post('/auth/2fa/disable');
+      await api.post('/api/auth/2fa/disable');
       toast.info("Two-Factor Authentication disabled");
       fetchProfile();
     } catch (err) {
@@ -84,10 +95,36 @@ const ProfileSettings = () => {
     }
   };
 
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+
+    if (newPassword.length < 12) {
+      toast.error("New password must be at least 12 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("New passwords do not match");
+      return;
+    }
+
+    setChangingPassword(true);
+    const result = await changePassword(currentPassword, newPassword, confirmPassword);
+    setChangingPassword(false);
+
+    if (result.success) {
+      toast.success("Password updated successfully");
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } else {
+      toast.error(result.error || "Failed to update password");
+    }
+  };
+
   const savePreferences = async () => {
     try {
       const prefs = JSON.stringify({ email_high_risk: notifyEmailHighRisk });
-      await api.put('/auth/me', { notification_preferences: prefs });
+      await api.put('/api/auth/me', { notification_preferences: prefs });
       toast.success("Security preferences saved");
     } catch (err) {
       toast.error("Failed to save preferences");
@@ -125,7 +162,6 @@ const ProfileSettings = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      
       {/* Header */}
       <div className="pb-2">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Account & Security</h1>
@@ -256,6 +292,85 @@ const ProfileSettings = () => {
         </CardContent>
       </Card>
 
+      {/* Change Password Card */}
+      <Card>
+        <CardHeader className="p-5 pb-3">
+          <CardTitle className="text-sm">Change Password</CardTitle>
+          <CardDescription>Update your institutional analyst passphrase.</CardDescription>
+        </CardHeader>
+        <CardContent className="p-5">
+          <form onSubmit={handlePasswordChange} className="space-y-4 max-w-lg">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">Current Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  type={showPasswords ? 'text' : 'password'}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="pl-9 pr-9 h-9 text-xs font-mono"
+                  placeholder="••••••••••••"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">New Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    type={showPasswords ? 'text' : 'password'}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="pl-9 pr-9 h-9 text-xs font-mono"
+                    placeholder="Min 12 chars"
+                    required
+                    minLength={12}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Confirm New Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    type={showPasswords ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="pl-9 pr-9 h-9 text-xs font-mono"
+                    placeholder="Min 12 chars"
+                    required
+                    minLength={12}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <button
+                type="button"
+                onClick={() => setShowPasswords(!showPasswords)}
+                className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5"
+              >
+                {showPasswords ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                <span>{showPasswords ? 'Hide passwords' : 'Show passwords'}</span>
+              </button>
+
+              <Button
+                type="submit"
+                size="sm"
+                disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
+              >
+                {changingPassword ? 'Updating...' : 'Update Password'}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
       {/* Security Notification Preferences Card */}
       <Card>
         <CardHeader className="p-5 pb-3">
@@ -279,7 +394,6 @@ const ProfileSettings = () => {
           </Button>
         </CardContent>
       </Card>
-
     </div>
   );
 };

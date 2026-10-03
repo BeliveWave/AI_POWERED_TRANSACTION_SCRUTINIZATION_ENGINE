@@ -144,7 +144,7 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -152,6 +152,7 @@ app.add_middleware(
 
 # --- INCLUDE ROUTERS ---
 app.include_router(auth.router)
+app.include_router(auth.router, prefix="/api")
 app.include_router(health.router)
 app.include_router(admin.router)
 app.include_router(config_rules.router)

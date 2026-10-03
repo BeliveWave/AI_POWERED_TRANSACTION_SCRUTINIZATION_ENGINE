@@ -1,44 +1,45 @@
 import axios from 'axios';
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+// Ensure base URL does not have trailing slashes
+const rawBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+export const API_BASE_URL = rawBase.replace(/\/+$/, '');
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000,
 });
 
-// Add a request interceptor to add the auth token
+// Request interceptor: attach bearer token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+    const token = localStorage.getItem('token') || localStorage.getItem('authToken');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Add response interceptor to handle 401 logging out?
-// Optional but good practice
+// Response interceptor: handle 401 session expirations
 api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        if (error.response && error.response.status === 401) {
-            // Check if it's not a login attempt
-            if (!error.config.url.includes('/login')) {
-                // Clear storage and redirect?
-                // localStorage.removeItem('token');
-                // localStorage.removeItem('authToken');
-                // window.location.href = '/login';
-            }
-        }
-        return Promise.reject(error);
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      const url = error.config?.url || '';
+      const isAuthEndpoint = url.includes('/login') || url.includes('/register') || url.includes('/forgot-password') || url.includes('/reset-password');
+      if (!isAuthEndpoint) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userData');
+        window.dispatchEvent(new Event('auth:unauthorized'));
+      }
     }
+    return Promise.reject(error);
+  }
 );
 
 export default api;

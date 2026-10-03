@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Lock, Mail, Shield, ArrowRight, Sun, Moon, KeyRound, CheckCircle2, AlertCircle } from 'lucide-react';
-import { toast } from 'react-toastify';
-import { useAuth } from '../hooks/useAuth';
-import { useTheme } from '../hooks/useTheme';
+import { Eye, EyeOff, Lock, Mail, Shield, Sun, Moon, KeyRound, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
-import api from '../services/api';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../components/ui/dialog';
+import { useAuth } from '../hooks/useAuth.jsx';
+import { useTheme } from '../hooks/useTheme.jsx';
+import api from '../services/api.js';
+import { Button } from '../components/ui/button.jsx';
+import { Input } from '../components/ui/input.jsx';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../components/ui/dialog.jsx';
+import { toast } from '../components/ui/toast.jsx';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -16,13 +15,13 @@ const Login = () => {
   const [otpCode, setOtpCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  
-  // States for flows
+
+  // States for 2FA and Forgot Password flows
   const [requires2FA, setRequires2FA] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
-  
-  // OTP Reset States
+
+  // In-modal OTP Reset States
   const [otpStep, setOtpStep] = useState(1);
   const [resetOtp, setResetOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -40,21 +39,21 @@ const Login = () => {
     setLoading(false);
 
     if (result.success) {
-      toast.success("Authentication successful");
+      toast.success("Authentication successful. Welcome to Sentinel console.");
       navigate('/dashboard');
     } else if (result.requires2FA) {
       setRequires2FA(true);
       toast.info("Please enter your two-factor authentication code.");
     } else {
-      toast.error(result.error || "Invalid credentials");
+      toast.error(result.error || "Invalid username or password");
     }
   };
 
   const handleSendOtp = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/auth/forgot-password', { email: resetEmail });
-      toast.success("Verification code sent to your email");
+      await api.post('/api/auth/forgot-password', { email: resetEmail });
+      toast.success("Verification code dispatched to your institutional email.");
       setOtpStep(2);
     } catch (err) {
       toast.error(err.response?.data?.detail || "Failed to dispatch recovery code");
@@ -67,11 +66,15 @@ const Login = () => {
       toast.error("Passwords do not match");
       return;
     }
-    
+    if (newPassword.length < 12) {
+      toast.error("Password must be at least 12 characters");
+      return;
+    }
+
     try {
-      await api.post('/auth/reset-password', {
+      await api.post('/api/auth/reset-password', {
         email: resetEmail,
-        otp: resetOtp,
+        token: resetOtp,
         new_password: newPassword,
         confirm_password: confirmPassword
       });
@@ -103,7 +106,6 @@ const Login = () => {
 
       {/* Left Column: Institutional Brand Showcase (Desktop only) */}
       <div className="hidden lg:flex lg:w-1/2 relative bg-zinc-950 text-zinc-100 flex-col justify-between p-12 border-r border-zinc-800 selection:bg-zinc-800">
-        {/* Subtle grid pattern background */}
         <div className="absolute inset-0 bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
 
         {/* Brand header */}
@@ -181,17 +183,17 @@ const Login = () => {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-foreground">Email</label>
+                  <label className="text-xs font-medium text-foreground">Email or Username</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
                     <Input
-                      type="email"
+                      type="text"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="pl-9 h-9 text-xs"
                       placeholder="analyst@bank.com"
                       required
-                      autoComplete="email"
+                      autoComplete="username"
                     />
                   </div>
                 </div>
@@ -199,13 +201,12 @@ const Login = () => {
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-medium text-foreground">Password</label>
-                    <button
-                      type="button"
-                      onClick={() => setShowForgotPassword(true)}
+                    <Link
+                      to="/forgot-password"
                       className="text-xs text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
                     >
                       Forgot password?
-                    </button>
+                    </Link>
                   </div>
                   <div className="relative">
                     <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -223,6 +224,7 @@ const Login = () => {
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground transition-colors"
                       tabIndex={-1}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -259,7 +261,7 @@ const Login = () => {
                 </div>
                 <h2 className="text-xl font-semibold tracking-tight">Two-Factor Authentication</h2>
                 <p className="text-xs text-muted-foreground">
-                  Enter the 6-digit code from your authenticator app.
+                  Enter the 6-digit verification code from your authenticator app.
                 </p>
               </div>
 
@@ -282,7 +284,7 @@ const Login = () => {
                   disabled={loading || otpCode.length !== 6}
                   className="w-full h-9 text-xs font-medium"
                 >
-                  {loading ? 'Verifying...' : 'Verify code'}
+                  {loading ? 'Verifying code...' : 'Verify code'}
                 </Button>
 
                 <Button

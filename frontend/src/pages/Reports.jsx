@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Download, CheckCircle, FileText } from 'lucide-react';
-import { toast } from 'react-toastify';
+import { toast } from '../components/ui/toast.jsx';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card.jsx';
 import { Button } from '../components/ui/button.jsx';
 import { Badge } from '../components/ui/badge.jsx';
+import { API_BASE_URL } from '../services/api.js';
 
-const API = 'http://localhost:8000';
+const API = API_BASE_URL;
 const getToken = () => localStorage.getItem('token') || '';
 
 const REPORTS = [

@@ -1,7 +1,5 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
 import Dashboard from "./pages/Dashboard.jsx";
 import Transactions from "./pages/Transactions.jsx";
 import Customers from "./pages/Customers.jsx";
@@ -14,23 +12,30 @@ import Login from "./pages/Login.jsx";
 import Investigator from "./pages/Investigator.jsx";
 import Register from "./pages/Register.jsx";
 import Landing from "./pages/Landing.jsx";
+import ForgotPassword from "./pages/ForgotPassword.jsx";
+import ResetPassword from "./pages/ResetPassword.jsx";
 import { AuthProvider, useAuth } from "./hooks/useAuth.jsx";
 import AppLayout from "./components/Layout/AppLayout.jsx";
 import SessionTimeout from "./components/Common/SessionTimeout.jsx";
-import { ThemeProvider, useTheme } from "./hooks/useTheme.jsx";
+import { ThemeProvider } from "./hooks/useTheme.jsx";
+import { Toaster } from "./components/ui/toaster.jsx";
 
 const AppContent = () => {
-  const { isLoggedIn, logout } = useAuth();
-  const { theme } = useTheme();
+  const { isLoggedIn } = useAuth();
 
   if (!isLoggedIn) {
     return (
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="*" element={<Landing />} />
-      </Routes>
+      <>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="*" element={<Landing />} />
+        </Routes>
+        <Toaster />
+      </>
     );
   }
 
@@ -48,10 +53,11 @@ const AppContent = () => {
           <Route path="/system-admin" element={<SystemAdmin />} />
           <Route path="/profile" element={<ProfileSettings />} />
           <Route path="/help" element={<Help />} />
+          <Route path="*" element={<Dashboard />} />
         </Routes>
       </AppLayout>
-      <SessionTimeout isLoggedIn={isLoggedIn} onLogout={logout} />
-      <ToastContainer position="top-right" autoClose={3000} theme={theme === 'dark' ? 'dark' : 'light'} />
+      <SessionTimeout />
+      <Toaster />
     </>
   );
 };

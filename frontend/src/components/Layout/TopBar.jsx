@@ -19,8 +19,13 @@ import { useAuth } from '../../hooks/useAuth.jsx';
 import { useTheme } from '../../hooks/useTheme.jsx';
 import { Badge } from '../ui/badge.jsx';
 import { Button } from '../ui/button.jsx';
+import { API_BASE_URL } from '../../services/api.js';
 
-const API = 'http://localhost:8000';
+const API = API_BASE_URL;
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 function timeAgo(isoString) {
   if (!isoString) return '';
@@ -116,7 +121,8 @@ const TopBar = ({ sidebarOpen, setSidebarOpen, collapsed, setCollapsed }) => {
     const timer = setTimeout(async () => {
       try {
         const res = await fetch(
-          `${API}/api/search?q=${encodeURIComponent(searchQuery.trim())}`
+          `${API}/api/search?q=${encodeURIComponent(searchQuery.trim())}`,
+          { headers: getAuthHeaders() }
         );
         const data = await res.json();
         setSearchResults(data);
@@ -138,7 +144,7 @@ const TopBar = ({ sidebarOpen, setSidebarOpen, collapsed, setCollapsed }) => {
   // Unread count polling
   const fetchUnreadCount = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/api/notifications/unread-count`);
+      const res = await fetch(`${API}/api/notifications/unread-count`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setUnreadCount(data.count);
@@ -156,7 +162,7 @@ const TopBar = ({ sidebarOpen, setSidebarOpen, collapsed, setCollapsed }) => {
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/api/notifications`);
+      const res = await fetch(`${API}/api/notifications`, { headers: getAuthHeaders() });
       if (res.ok) setNotifications(await res.json());
     } catch {
       // ignore
@@ -168,7 +174,10 @@ const TopBar = ({ sidebarOpen, setSidebarOpen, collapsed, setCollapsed }) => {
     await fetchNotifications();
     if (unreadCount > 0) {
       try {
-        await fetch(`${API}/api/notifications/mark-all-read`, { method: 'POST' });
+        await fetch(`${API}/api/notifications/mark-all-read`, {
+          method: 'POST',
+          headers: getAuthHeaders()
+        });
         setUnreadCount(0);
       } catch {
         // ignore

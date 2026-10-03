@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../hooks/useAuth';
-import Modal from './Modal';
-import { AlertTriangle } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth.jsx';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog.jsx';
+import { Button } from '../ui/button.jsx';
+import { AlertTriangle, Clock } from 'lucide-react';
 
 const SessionTimeout = () => {
-  const { isLoggedIn, logout, updateActivity, isSessionValid, SESSION_TIMEOUT } = useAuth();
+  const { isLoggedIn, logout, updateActivity } = useAuth();
   const [showWarning, setShowWarning] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
 
@@ -14,8 +15,7 @@ const SessionTimeout = () => {
       return;
     }
 
-    // Check session expiry every second to show warning
-    const warningInterval = setInterval(() => {
+    const checkInterval = setInterval(() => {
       const sessionExpiry = localStorage.getItem('sessionExpiry');
       if (!sessionExpiry) {
         setShowWarning(false);
@@ -23,24 +23,25 @@ const SessionTimeout = () => {
       }
 
       const now = Date.now();
-      const expiryTime = parseInt(sessionExpiry);
+      const expiryTime = parseInt(sessionExpiry, 10);
       const remaining = expiryTime - now;
 
-      // Show warning 2 minutes before expiry
-      const WARNING_THRESHOLD = 2 * 60 * 1000; // 2 minutes
+      // Warn 2 minutes before expiry
+      const WARNING_WINDOW_MS = 2 * 60 * 1000;
 
-      if (remaining <= WARNING_THRESHOLD && remaining > 0) {
+      if (remaining <= 0) {
+        setShowWarning(false);
+        logout();
+      } else if (remaining <= WARNING_WINDOW_MS) {
         setShowWarning(true);
-        setTimeRemaining(Math.ceil(remaining / 1000)); // Convert to seconds
+        setTimeRemaining(Math.ceil(remaining / 1000));
       } else {
         setShowWarning(false);
       }
-    }, 1000); // Check every second
+    }, 1000);
 
-    return () => {
-      clearInterval(warningInterval);
-    };
-  }, [isLoggedIn]);
+    return () => clearInterval(checkInterval);
+  }, [isLoggedIn, logout]);
 
   const handleContinueSession = () => {
     updateActivity();
@@ -58,49 +59,53 @@ const SessionTimeout = () => {
   const seconds = timeRemaining % 60;
 
   return (
-    <Modal 
-      isOpen={showWarning} 
-      onClose={handleContinueSession}
-      title="Session Expiring"
-      size="md"
-      showCloseButton={false}
-    >
-      <div className="text-center py-4">
-        <div className="flex justify-center mb-4">
-          <AlertTriangle className="w-16 h-16 text-yellow-500 dark:text-amber-500" />
+    <Dialog open={showWarning} onOpenChange={setShowWarning}>
+      <DialogContent className="max-w-md">
+        <DialogHeader className="text-center sm:text-center">
+          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
+            <AlertTriangle className="h-6 w-6" />
+          </div>
+          <DialogTitle className="text-lg font-semibold text-foreground">
+            Session Expiring
+          </DialogTitle>
+          <DialogDescription className="text-xs text-muted-foreground mt-1">
+            Your analyst session will terminate automatically due to inactivity in:
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="py-4 text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-muted border border-border">
+            <Clock className="h-4 w-4 text-destructive animate-pulse" />
+            <span className="font-mono text-2xl font-bold text-destructive tabular-nums">
+              {minutes}:{seconds.toString().padStart(2, '0')}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            Click &ldquo;Continue Session&rdquo; to refresh your authentication token and stay active in the console.
+          </p>
         </div>
-        
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-          Your session is about to expire
-        </h3>
-        
-        <p className="text-gray-600 dark:text-slate-300 mb-4">
-          You will be automatically logged out in{' '}
-          <span className="font-bold text-red-600 dark:text-red-400">
-            {minutes}:{seconds.toString().padStart(2, '0')}
-          </span>
-        </p>
-        
-        <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">
-          Click "Continue Session" to stay logged in, or you will be logged out due to inactivity.
-        </p>
-        
-        <div className="flex gap-4 justify-center">
-          <button
+
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleLogoutNow}
+            className="w-full sm:w-auto text-xs"
+          >
+            Sign Out Now
+          </Button>
+          <Button
+            type="button"
+            size="sm"
             onClick={handleContinueSession}
-            className="px-6 py-2 bg-blue-600 dark:bg-amber-600 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-amber-700 font-medium transition-colors"
+            className="w-full sm:w-auto text-xs"
           >
             Continue Session
-          </button>
-          <button
-            onClick={handleLogoutNow}
-            className="px-6 py-2 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-600 font-medium transition-colors"
-          >
-            Logout Now
-          </button>
-        </div>
-      </div>
-    </Modal>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 

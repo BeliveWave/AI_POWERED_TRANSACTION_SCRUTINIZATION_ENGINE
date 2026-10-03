@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import { Button } from '../components/ui/button';
+import { API_BASE_URL } from '../services/api.js';
 import { Badge } from '../components/ui/badge';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
@@ -50,7 +51,7 @@ const Landing = () => {
     setSubscribing(true);
     setSubscribeStatus(null);
     try {
-      const response = await fetch('http://localhost:8000/api/newsletter/subscribe', {
+      const response = await fetch(`${API_BASE_URL}/api/newsletter/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),

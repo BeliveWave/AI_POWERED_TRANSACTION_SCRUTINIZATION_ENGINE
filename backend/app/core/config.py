@@ -18,11 +18,17 @@ class Settings(BaseSettings):
     NEO4J_USER: str = "neo4j"
     NEO4J_PASSWORD: str = "password"
     
+    # Frontend & CORS
+    FRONTEND_URL: str = "http://localhost:5173"
+    CORS_ORIGINS: str = "*"
+
     # Email Settings
     SMTP_SERVER: Optional[str] = "smtp.gmail.com"
     SMTP_PORT: Optional[str] = "587"
     SMTP_USERNAME: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
+    SMTP_FROM_EMAIL: Optional[str] = "security@sentinel.bank"
+    SMTP_FROM_NAME: Optional[str] = "Sentinel Security"
 
     class Config:
         env_file = (

@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, User, Mail, Lock, Shield, Sun, Moon, CheckCircle2, ArrowRight } from 'lucide-react';
-import { toast } from 'react-toastify';
-import { useAuth } from '../hooks/useAuth';
-import { useTheme } from '../hooks/useTheme';
 import { useNavigate, Link } from 'react-router-dom';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
+import { useAuth } from '../hooks/useAuth.jsx';
+import { useTheme } from '../hooks/useTheme.jsx';
+import { Button } from '../components/ui/button.jsx';
+import { Input } from '../components/ui/input.jsx';
+import { toast } from '../components/ui/toast.jsx';
 
 const Register = () => {
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -19,27 +20,41 @@ const Register = () => {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
+  // Password requirements
+  const checks = {
+    length: password.length >= 12,
+    upper: /[A-Z]/.test(password),
+    lower: /[a-z]/.test(password),
+    number: /\d/.test(password),
+    special: /[!@#$%^&*(),.?":{}|<>\-_=+\\/[\]]/.test(password),
+    match: password.length > 0 && password === confirmPassword,
+  };
+  const allValid = Object.values(checks).every(Boolean);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (password.length < 8) {
-      toast.error("Password must be at least 8 characters");
+
+    if (!allValid) {
+      toast.error("Please satisfy all password security requirements before proceeding.");
       return;
     }
 
     setLoading(true);
     const result = await register(email, username, fullName, password);
-    setLoading(false);
 
     if (result.success) {
-      toast.success("Account created successfully. Signing in...");
-      const loginSuccess = await login(email, password);
-      if (loginSuccess) {
+      toast.success("Account created successfully. Authenticating session...");
+      const loginResult = await login(username, password);
+      setLoading(false);
+
+      if (loginResult.success) {
         navigate('/dashboard');
       } else {
-        toast.info("Please sign in with your credentials.");
+        toast.info("Account established. Please sign in with your credentials.");
         navigate('/login');
       }
     } else {
+      setLoading(false);
       toast.error(result.error || "Failed to create account");
     }
   };
@@ -61,7 +76,6 @@ const Register = () => {
 
       {/* Left Column: Institutional Brand Showcase (Desktop only) */}
       <div className="hidden lg:flex lg:w-1/2 relative bg-zinc-950 text-zinc-100 flex-col justify-between p-12 border-r border-zinc-800 selection:bg-zinc-800">
-        {/* Subtle grid pattern background */}
         <div className="absolute inset-0 bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
 
         {/* Brand header */}
@@ -135,7 +149,7 @@ const Register = () => {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3.5">
+            <form onSubmit={handleSubmit} className="space-y-3">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-foreground">Full Name</label>
                 <div className="relative">
@@ -192,28 +206,67 @@ const Register = () => {
                     className="pl-9 pr-9 h-9 text-xs font-mono"
                     placeholder="••••••••••••"
                     required
-                    minLength={8}
+                    minLength={12}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground transition-colors"
                     tabIndex={-1}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Must be at least 8 characters.
-                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Confirm Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="pl-9 pr-9 h-9 text-xs font-mono"
+                    placeholder="••••••••••••"
+                    required
+                    minLength={12}
+                  />
+                </div>
+              </div>
+
+              {/* Real-time policy requirements breakdown */}
+              <div className="p-3 rounded-lg border border-border bg-muted/30 space-y-1 text-[11px]">
+                <div className="font-medium text-foreground mb-1">Password Requirements:</div>
+                <div className={`flex items-center gap-1.5 ${checks.length ? 'text-emerald-500' : 'text-muted-foreground'}`}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                  <span>At least 12 characters ({password.length}/12)</span>
+                </div>
+                <div className={`flex items-center gap-1.5 ${checks.upper && checks.lower ? 'text-emerald-500' : 'text-muted-foreground'}`}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                  <span>Uppercase and lowercase letters</span>
+                </div>
+                <div className={`flex items-center gap-1.5 ${checks.number ? 'text-emerald-500' : 'text-muted-foreground'}`}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                  <span>At least one number (0-9)</span>
+                </div>
+                <div className={`flex items-center gap-1.5 ${checks.special ? 'text-emerald-500' : 'text-muted-foreground'}`}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                  <span>At least one special character (!@#$%^&*)</span>
+                </div>
+                <div className={`flex items-center gap-1.5 ${checks.match ? 'text-emerald-500' : 'text-muted-foreground'}`}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                  <span>Passwords match</span>
+                </div>
               </div>
 
               <Button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !allValid}
                 className="w-full h-9 text-xs font-medium mt-2"
               >
-                {loading ? 'Creating account...' : 'Create account'}
+                {loading ? 'Creating analyst account...' : 'Create account'}
               </Button>
             </form>
 
