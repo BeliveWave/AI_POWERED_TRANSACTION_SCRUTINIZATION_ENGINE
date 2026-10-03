@@ -26,18 +26,18 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
-        const response = await fetch('${API_BASE_URL}/api/transactions/recent');
+        const response = await fetch(`${API_BASE_URL}/api/transactions/recent`);
         if (response.ok) {
           const data = await response.json();
-          const mappedTxns = data.map(txn => ({
+          const mappedTxns = (Array.isArray(data) ? data : []).map(txn => ({
             id: txn.id,
-            time: new Date(txn.timestamp).toLocaleTimeString(),
-            amount: `LKR ${txn.amount.toFixed(2)}`,
-            merchant: txn.merchant,
-            customer_name: txn.customer_name,
-            card_info: `${txn.card_type} •••• ${txn.card_last_four}`,
-            score: txn.fraud_score,
-            decision: txn.status,
+            time: txn.timestamp ? new Date(txn.timestamp).toLocaleTimeString() : 'N/A',
+            amount: `LKR ${Number(txn.amount || 0).toFixed(2)}`,
+            merchant: txn.merchant || 'Unknown',
+            customer_name: txn.customer_name || 'Anonymous',
+            card_info: `${txn.card_type || 'Card'} •••• ${txn.card_last_four || '0000'}`,
+            score: txn.fraud_score ?? 0,
+            decision: txn.status || 'Pending',
             variant: txn.status === 'Decline' ? 'destructive' : (txn.status === 'Escalate' ? 'warning' : 'outline')
           }));
           setTransactions(mappedTxns);
@@ -49,22 +49,24 @@ const Dashboard = () => {
 
     const fetchDashboardData = async () => {
       try {
-        const statsRes = await fetch('${API_BASE_URL}/api/dashboard/stats');
+        const statsRes = await fetch(`${API_BASE_URL}/api/dashboard/stats`);
         if (statsRes.ok) {
           const statsJson = await statsRes.json();
-          setStats(statsJson);
+          if (statsJson && typeof statsJson === 'object') {
+            setStats(prev => ({ ...prev, ...statsJson }));
+          }
         }
 
-        const trendsRes = await fetch('${API_BASE_URL}/api/dashboard/trends');
+        const trendsRes = await fetch(`${API_BASE_URL}/api/dashboard/trends`);
         if (trendsRes.ok) {
           const trendsJson = await trendsRes.json();
-          setGraphData(trendsJson);
+          if (Array.isArray(trendsJson)) setGraphData(trendsJson);
         }
 
-        const riskRes = await fetch('${API_BASE_URL}/api/dashboard/risky-merchants');
+        const riskRes = await fetch(`${API_BASE_URL}/api/dashboard/risky-merchants`);
         if (riskRes.ok) {
           const riskJson = await riskRes.json();
-          setRiskyMerchants(riskJson);
+          if (Array.isArray(riskJson)) setRiskyMerchants(riskJson);
         }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);

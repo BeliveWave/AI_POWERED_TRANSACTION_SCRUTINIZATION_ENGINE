@@ -9,12 +9,14 @@ services:
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     plan: free
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
       - key: DATABASE_URL
-        sync: false  # Set in Render dashboard — never commit
+        sync: false  # Set in Render dashboard (Supabase PostgreSQL URL)
       - key: SECRET_KEY
         sync: false
       - key: REDIS_URL
-        sync: false
+        sync: false  # Set in Render dashboard (Upstash Redis URL)
       - key: KAFKA_BROKER_URL
         value: disabled  # Kafka not used in cloud mode; sync endpoint used instead
       - key: NEO4J_URI
@@ -22,4 +24,21 @@ services:
       - key: ALGORITHM
         value: HS256
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
-        value: "30"
+        value: "60"
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: FRONTEND_URL
+        value: https://sentinalengine.vercel.app
+      - key: SMTP_SERVER
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM_EMAIL
+        sync: false
+      - key: SMTP_FROM_NAME
+        value: "Sentinel Security"
+

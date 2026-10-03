@@ -58,7 +58,7 @@ const Transactions = () => {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const response = await fetch('${API_BASE_URL}/api/admin/config');
+        const response = await fetch(`${API_BASE_URL}/api/admin/config`);
         if (response.ok) {
           const configs = await response.json();
           const declineConfig = configs.find(c => c.key === 'fraud_threshold_decline');
