@@ -140,6 +140,8 @@ origins = [
     "http://localhost:5174",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:5174",
+    "https://sentinalengine.vercel.app",
+    "https://sentinel-one-blond.vercel.app",
 ]
 
 app.add_middleware(
@@ -200,10 +202,25 @@ def startup_event():
 
     # 2. Load XGBoost Model (Supervised Learning - Known Frauds)
     print("\n[2/3] Loading XGBoost model (supervised learning) and encoders...")
+    def _resolve_model_path(fname):
+        for cand in [
+            fname,
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), fname),
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), fname),
+            os.path.join(os.getcwd(), fname),
+            os.path.join(os.getcwd(), "backend", fname),
+            os.path.join(os.getcwd(), "backend", "app", fname),
+        ]:
+            if os.path.exists(cand):
+                return cand
+        return fname
+
     try:
-        ml_model = joblib.load("fraud_model.pkl")
-        feature_encoders = joblib.load("feature_encoders.pkl")
-        print("     XGBoost model and encoders loaded successfully")
+        xgb_path = _resolve_model_path("fraud_model.pkl")
+        enc_path = _resolve_model_path("feature_encoders.pkl")
+        ml_model = joblib.load(xgb_path)
+        feature_encoders = joblib.load(enc_path)
+        print(f"     XGBoost model and encoders loaded successfully from {xgb_path}")
     except Exception as e:
         print(f"     Failed to load XGBoost model: {e}")
         print("     System will operate without XGBoost")
@@ -316,7 +333,8 @@ def system_health(db: Session = Depends(get_db)):
     # ── 3. XGBoost ML Model ───────────────────────────────────────────────────
     if ml_model is not None:
         try:
-            dummy = np.zeros((1, 30))
+            n_feat = getattr(ml_model, "n_features_in_", 9)
+            dummy = np.zeros((1, n_feat))
             t0 = _time.perf_counter()
             ml_model.predict_proba(dummy)
             xgb_latency = round((_time.perf_counter() - t0) * 1000, 2)
@@ -342,19 +360,40 @@ def system_health(db: Session = Depends(get_db)):
         })
 
     # ── 4. Autoencoder Model ──────────────────────────────────────────────────
-    if autoencoder_model is not None and autoencoder_scaler is not None:
+    ae_tested = False
+    if numpy_autoencoder is not None and numpy_ae_scaler is not None:
         try:
-            dummy = np.zeros((1, 30))
-            scaled = autoencoder_scaler.transform(dummy)
+            n_feat = getattr(numpy_ae_scaler, "n_features_in_", 9)
+            dummy = np.zeros((1, n_feat))
             t0 = _time.perf_counter()
+            scaled = numpy_ae_scaler.transform(dummy)
+            numpy_autoencoder.reconstruction_error(scaled)
+            ae_latency = round((_time.perf_counter() - t0) * 1000, 2)
+            results.append({
+                "name": "Autoencoder Model",
+                "status": "healthy",
+                "latency_ms": ae_latency,
+                "detail": "NumPy Anomaly Detector active"
+            })
+            ae_tested = True
+        except Exception as e:
+            pass
+
+    if not ae_tested and autoencoder_model is not None and autoencoder_scaler is not None:
+        try:
+            n_feat = getattr(autoencoder_scaler, "n_features_in_", 9)
+            dummy = np.zeros((1, n_feat))
+            t0 = _time.perf_counter()
+            scaled = autoencoder_scaler.transform(dummy)
             autoencoder_model.predict(scaled, verbose=0)
             ae_latency = round((_time.perf_counter() - t0) * 1000, 2)
             results.append({
                 "name": "Autoencoder Model",
                 "status": "healthy",
                 "latency_ms": ae_latency,
-                "detail": "Anomaly detector responding"
+                "detail": "Keras Anomaly Detector active"
             })
+            ae_tested = True
         except Exception as e:
             results.append({
                 "name": "Autoencoder Model",
@@ -362,7 +401,9 @@ def system_health(db: Session = Depends(get_db)):
                 "latency_ms": None,
                 "detail": f"Inference error: {str(e)[:80]}"
             })
-    else:
+            ae_tested = True
+
+    if not ae_tested:
         results.append({
             "name": "Autoencoder Model",
             "status": "warning",
@@ -518,8 +559,8 @@ def predict_fraud(txn: TransactionRequest, db: Session = Depends(get_db)):
 
 @app.get("/api/transactions/recent")
 def get_recent_transactions(limit: int = 10, db: Session = Depends(get_db)):
-    # Join Transaction with Customer to get name and card details
-    results = db.query(Transaction, Customer).join(Customer, Transaction.customer_id == Customer.id).order_by(Transaction.timestamp.desc()).limit(limit).all()
+    # Outer-join Transaction with Customer to get name and card details (preserves direct checkouts)
+    results = db.query(Transaction, Customer).outerjoin(Customer, Transaction.customer_id == Customer.id).order_by(Transaction.id.desc()).limit(limit).all()
     
     # Format the response
     formatted_transactions = []
@@ -527,14 +568,14 @@ def get_recent_transactions(limit: int = 10, db: Session = Depends(get_db)):
         formatted_transactions.append({
             "id": txn.id,
             "customer_id": txn.customer_id,
-            "merchant": txn.merchant,
-            "amount": txn.amount,
+            "merchant": txn.merchant or "Online Checkout",
+            "amount": float(txn.amount or 0.0),
             "timestamp": txn.timestamp,
-            "fraud_score": txn.fraud_score,
-            "status": txn.status,
-            "customer_name": cust.full_name,
-            "card_type": cust.card_type,
-            "card_last_four": cust.card_last_four
+            "fraud_score": txn.fraud_score or 0.0,
+            "status": txn.status or "Approve",
+            "customer_name": cust.full_name if cust else "Guest Customer",
+            "card_type": cust.card_type if cust else "Visa",
+            "card_last_four": cust.card_last_four if cust else "4242"
         })
     return formatted_transactions
 
@@ -963,13 +1004,19 @@ def score_transaction_sync(
         fraud_score = round(xgboost_score, 4)
         model_used = "xgboost-only"
 
-    # ── 8. Gap-free decision policy ────────────────────────────────────────
-    # BRD had gaps at 0.50 and 0.70-0.71. This is fully contiguous:
+    # ── 8. Gap-free decision policy with active threat enforcement ─────────
+    # A foreign VPN location jump or velocity burst triggers high risk
+    if is_foreign:
+        fraud_score = max(fraud_score, 0.78)  # Guarantees Decline
+    if velocity_1h >= 3:
+        fraud_score = max(fraud_score, 0.82)  # Guarantees Decline
+
     if fraud_score >= decline_threshold:
         status = "Decline"
         reason_codes = ["HIGH_FRAUD_SCORE"]
         if is_foreign:
             reason_codes.append("FOREIGN_TRANSACTION")
+            reason_codes.append("SUSPICIOUS_GEOLOCATION")
         if velocity_1h >= 3:
             reason_codes.append("HIGH_VELOCITY")
     elif fraud_score >= review_threshold:
@@ -995,6 +1042,7 @@ def score_transaction_sync(
         terminal_id=meta.terminal_id,
         moto_eci_indicator=meta.moto_eci_indicator,
         three_d_secure=meta.three_d_secure,
+        timestamp=datetime.now(),
         fraud_score=fraud_score,
         xgboost_score=round(xgboost_score, 4),
         autoencoder_score=round(autoencoder_score, 4),

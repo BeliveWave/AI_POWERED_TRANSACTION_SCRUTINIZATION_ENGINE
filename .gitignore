@@ -198,3 +198,5 @@ backend/*_simulator*.keras
 
 .agents
 skills-lock.json
+ACTIVE_LIVE_URL.txt
+extract_weights_script.py

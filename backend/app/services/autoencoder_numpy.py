@@ -39,9 +39,22 @@ class NumpyAutoencoder:
 
 def load_numpy_autoencoder(base_dir: str):
     """Load the numpy autoencoder from the backend directory. Returns (autoencoder, scaler, metadata) or (None, None, None)."""
-    weights_path = os.path.join(base_dir, 'autoencoder_weights.pkl')
-    scaler_path = os.path.join(base_dir, 'autoencoder_scaler.pkl')
-    meta_path = os.path.join(base_dir, 'autoencoder_metadata.pkl')
+    def _find(fname):
+        for candidate in [
+            os.path.join(base_dir, fname),
+            os.path.join(os.getcwd(), fname),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), fname),
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), fname),
+            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), fname),
+            fname
+        ]:
+            if os.path.exists(candidate):
+                return candidate
+        return os.path.join(base_dir, fname)
+
+    weights_path = _find('autoencoder_weights.pkl')
+    scaler_path = _find('autoencoder_scaler.pkl')
+    meta_path = _find('autoencoder_metadata.pkl')
     
     if not all(os.path.exists(p) for p in [weights_path, scaler_path, meta_path]):
         return None, None, None

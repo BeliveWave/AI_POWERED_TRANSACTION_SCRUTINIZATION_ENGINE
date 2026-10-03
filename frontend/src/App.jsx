@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import Dashboard from "./pages/Dashboard.jsx";
 import Transactions from "./pages/Transactions.jsx";
 import Customers from "./pages/Customers.jsx";
@@ -14,6 +14,7 @@ import Register from "./pages/Register.jsx";
 import Landing from "./pages/Landing.jsx";
 import ForgotPassword from "./pages/ForgotPassword.jsx";
 import ResetPassword from "./pages/ResetPassword.jsx";
+import CheckoutPage from "./simulator/CheckoutPage.jsx";
 import { AuthProvider, useAuth } from "./hooks/useAuth.jsx";
 import AppLayout from "./components/Layout/AppLayout.jsx";
 import SessionTimeout from "./components/Common/SessionTimeout.jsx";
@@ -22,7 +23,37 @@ import { Toaster } from "./components/ui/toaster.jsx";
 
 const AppContent = () => {
   const { isLoggedIn } = useAuth();
+  const location = useLocation();
 
+  // 1. Standalone Customer Checkout / Demo page — completely independent of the admin console
+  const isSimulator = location.pathname.startsWith('/demo') || location.pathname.startsWith('/checkout');
+  if (isSimulator) {
+    return (
+      <>
+        <Routes>
+          <Route path="/demo" element={<CheckoutPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="*" element={<CheckoutPage />} />
+        </Routes>
+        <Toaster />
+      </>
+    );
+  }
+
+  // 2. Authentication Recovery & Public Security Pages (always accessible)
+  if (['/reset-password', '/forgot-password'].includes(location.pathname)) {
+    return (
+      <>
+        <Routes>
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+        </Routes>
+        <Toaster />
+      </>
+    );
+  }
+
+  // 3. Unauthenticated Institutional Portal
   if (!isLoggedIn) {
     return (
       <>
@@ -30,8 +61,6 @@ const AppContent = () => {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="*" element={<Landing />} />
         </Routes>
         <Toaster />
@@ -39,6 +68,7 @@ const AppContent = () => {
     );
   }
 
+  // 4. Authenticated Analyst Dashboard
   return (
     <>
       <AppLayout>
