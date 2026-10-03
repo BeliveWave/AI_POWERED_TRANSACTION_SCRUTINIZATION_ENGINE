@@ -1,8 +1,15 @@
 import axios from 'axios';
 
-// Ensure base URL does not have trailing slashes
-const rawBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-export const API_BASE_URL = rawBase.replace(/\/+$/, '');
+// Ensure base URL is trimmed and does not have trailing slashes or erroneous subpaths
+let rawBase = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').trim();
+rawBase = rawBase.replace(/\/+$/, '');
+if (rawBase.endsWith('/login')) {
+  rawBase = rawBase.slice(0, -6).replace(/\/+$/, '');
+}
+if (rawBase.endsWith('/api')) {
+  rawBase = rawBase.slice(0, -4).replace(/\/+$/, '');
+}
+export const API_BASE_URL = rawBase;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
