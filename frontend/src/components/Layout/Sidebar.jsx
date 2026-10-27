@@ -12,7 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  ExternalLink
+  ExternalLink,
+  Kanban
 } from 'lucide-react';
 import { Badge } from '../ui/badge.jsx';
 import { Button } from '../ui/button.jsx';
@@ -34,6 +35,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, collapsed, setCollapsed }) => {
     { id: 'investigator', label: 'Investigations', path: '/investigator', icon: AlertTriangle },
     { id: 'customers', label: 'Customers', path: '/customers', icon: Users },
     { id: 'reports', label: 'Reports', path: '/reports', icon: FileText },
+    { id: 'agile', label: 'Agile Sprint Board', path: '/agile', icon: Kanban },
   ];
 
   const navSystem = [

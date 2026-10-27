@@ -200,3 +200,6 @@ backend/*_simulator*.keras
 skills-lock.json
 ACTIVE_LIVE_URL.txt
 extract_weights_script.py
+# Archived documentation & untracked working files
+docs/archive/
+
