@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sentinel TSE - Agile Sprint Management Board</title>
+  <style>
+    :root {
+      --bg: #0b0f17;
+      --card-bg: #151d2a;
+      --card-border: #223047;
+      --sidebar-bg: #0e1522;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-sub: #64748b;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --purple: #8b5cf6;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: var(--sidebar-bg);
+      border-bottom: 1px solid var(--card-border);
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo-badge {
+      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      font-size: 14px;
+    }
+    .title-area h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .title-area p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .badge-pill {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .badge-jira {
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+    .badge-success {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .container {
+      padding: 24px;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+    }
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .stat-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .stat-val {
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .stat-sub {
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-top: 4px;
+    }
+    .controls-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--sidebar-bg);
+      border: 1px solid var(--card-border);
+      padding: 14px 18px;
+      border-radius: 10px;
+      margin-bottom: 24px;
+    }
+    .tab-group {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .tab-btn:hover {
+      color: #fff;
+      border-color: #3b82f6;
+    }
+    .tab-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+      font-weight: 600;
+    }
+    .filter-group {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    select, input {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+    }
+    select:focus, input:focus {
+      border-color: var(--primary);
+    }
+    .board-columns {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      align-items: flex-start;
+    }
+    @media (max-width: 1024px) {
+      .board-columns {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (max-width: 640px) {
+      .board-columns {
+        grid-template-columns: 1fr;
+      }
+    }
+    .column {
+      background: #0f1623;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 14px;
+      min-height: 480px;
+    }
+    .col-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #1e293b;
+      margin-bottom: 14px;
+    }
+    .col-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .col-count {
+      background: #1e293b;
+      color: var(--text-muted);
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+    .issue-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+    }
+    .issue-card:hover {
+      transform: translateY(-2px);
+      border-color: #3b82f6;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+    }
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .issue-key {
+      font-size: 12px;
+      font-weight: 700;
+      color: #60a5fa;
+    }
+    .epic-tag {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(139, 92, 246, 0.2);
+      color: #c084fc;
+      border: 1px solid rgba(139, 92, 246, 0.4);
+      font-weight: 600;
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #e2e8f0;
+      line-height: 1.4;
+      margin-bottom: 10px;
+    }
+    .card-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 8px;
+      border-top: 1px solid #1e293b;
+      font-size: 11px;
+    }
+    .assignee-info {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+    }
+    .avatar-sm {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #3b82f6;
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .story-points {
+      background: #1e293b;
+      color: #cbd5e1;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 11px;
+    }
+    .priority-badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .p-highest { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    .p-high { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+    .p-medium { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+    
+    /* Modal */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-backdrop.active {
+      display: flex;
+    }
+    .modal {
+      background: #111827;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      max-width: 720px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+    .modal-header {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-body {
+      padding: 24px;
+    }
+    .modal-footer {
+      padding: 14px 24px;
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      justify-content: flex-end;
+    }
+    .btn-close {
+      background: #1f2937;
+      color: #fff;
+      border: 1px solid #374151;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .criteria-box {
+      background: #0f172a;
+      border-left: 3px solid var(--primary);
+      padding: 12px 16px;
+      border-radius: 0 6px 6px 0;
+      margin: 14px 0;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--card-border);
+      font-size: 13px;
+    }
+    .print-btn {
+      background: #1e293b;
+      color: #fff;
+      border: 1px solid #334155;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .print-btn:hover {
+      background: #334155;
+    }
+    @media print {
+      body { background: #fff !important; color: #000 !important; }
+      header, .controls-bar, .print-btn { display: none !important; }
+      .column { background: #fff !important; border: 1px solid #ccc !important; }
+      .issue-card { background: #fff !important; border: 1px solid #ddd !important; color: #000 !important; }
+      .card-title { color: #000 !important; }
+      .issue-key { color: #1e40af !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="logo-badge">SENTINEL TSE</div>
+      <div class="title-area">
+        <h1>EC5406 Software Project — Agile Sprint Management</h1>
+        <p>AI-Powered Transaction Scrutinization Engine | University Final Evaluation</p>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <span class="badge-pill badge-jira">Jira Equivalent Platform</span>
+      <span class="badge-pill badge-success">Sprints 1-4 Done (100%)</span>
+      <button class="print-btn" onclick="window.print()">Print / Export PDF</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Top Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-title">Total Completed Velocity</div>
+        <div class="stat-val" style="color:#60a5fa;">82 <span style="font-size:14px; font-weight:normal; color:#94a3b8;">Story Points</span></div>
+        <div class="stat-sub">100% committed scope completed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Agile Sprints</div>
+        <div class="stat-val" style="color:#34d399;">4 / 4</div>
+        <div class="stat-sub">All sprint reviews & retrospectives signed off</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Project Timeline</div>
+        <div class="stat-val" style="color:#c084fc;">Oct 2025 – Apr 2026</div>
+        <div class="stat-sub">Proposal Sep 2025 | Pre-internship completion</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Project Team</div>
+        <div class="stat-val" style="color:#f59e0b;">4 Members</div>
+        <div class="stat-sub">Suwaathmi R. (PM), Inshaf, Nusair, Tharukshan</div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-bar">
+      <div class="tab-group" id="sprintTabs">
+        <button class="tab-btn active" onclick="setSprint('ALL')">All Sprints (Overview)</button>
+        <button class="tab-btn" onclick="setSprint('Sprint 1')">Sprint 1 (Oct-Nov 2025)</button>
+        <button class="tab-btn" onclick="setSprint('Sprint 2')">Sprint 2 (Nov-Dec 2025)</button>
+        <button class="tab-btn" onclick="setSprint('Sprint 3')">Sprint 3 (Jan-Feb 2026)</button>
+        <button class="tab-btn" onclick="setSprint('Sprint 4')">Sprint 4 (Mar-Apr 2026)</button>
+      </div>
+
+      <div class="filter-group">
+        <label style="font-size:13px; color:#94a3b8;">Assignee:</label>
+        <select id="assigneeFilter" onchange="renderBoard()">
+          <option value="ALL">All Team Members</option>
+          <option value="Suwaathmi">Suwaathmi R. (EG/2022/5361) - PM</option>
+          <option value="Rajaaei">Rajaaei M.N.I. (EG/2022/5261) - Lead/AI</option>
+          <option value="Nusair">Nusair M.N.M. (EG/2022/5226) - Backend/DevOps</option>
+          <option value="Tharukshan">Tharukshan G. (EG/2022/5367) - QA/Explainability</option>
+        </select>
+        <input type="text" id="searchInput" placeholder="Search stories..." oninput="renderBoard()" style="width:180px;">
+      </div>
+    </div>
+
+    <!-- Board Columns -->
+    <div class="board-columns">
+      <!-- TO DO -->
+      <div class="column">
+        <div class="col-header">
+          <div class="col-title" style="color:#94a3b8;">
+            <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#94a3b8;"></span>
+            To Do
+          </div>
+          <span class="col-count" id="count-todo">0</span>
+        </div>
+        <div id="col-todo"></div>
+      </div>
+
+      <!-- IN PROGRESS -->
+      <div class="column">
+        <div class="col-header">
+          <div class="col-title" style="color:#60a5fa;">
+            <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#3b82f6;"></span>
+            In Progress
+          </div>
+          <span class="col-count" id="count-inprogress">0</span>
+        </div>
+        <div id="col-inprogress"></div>
+      </div>
+
+      <!-- IN REVIEW / TESTING -->
+      <div class="column">
+        <div class="col-header">
+          <div class="col-title" style="color:#fbbf24;">
+            <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#f59e0b;"></span>
+            In Review / Testing
+          </div>
+          <span class="col-count" id="count-review">0</span>
+        </div>
+        <div id="col-review"></div>
+      </div>
+
+      <!-- DONE -->
+      <div class="column">
+        <div class="col-header">
+          <div class="col-title" style="color:#34d399;">
+            <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10b981;"></span>
+            Done / Accepted
+          </div>
+          <span class="col-count" id="count-done">16</span>
+        </div>
+        <div id="col-done"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail Modal -->
+  <div class="modal-backdrop" id="detailModal" onclick="closeModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <span id="modalKey" class="issue-key" style="font-size:14px; margin-right:8px;"></span>
+          <span id="modalEpic" class="epic-tag"></span>
+        </div>
+        <button class="btn-close" onclick="closeModal()">✕ Close</button>
+      </div>
+      <div class="modal-body">
+        <h2 id="modalTitle" style="font-size:18px; margin-bottom:12px; color:#fff;"></h2>
+        <div style="font-size:13px; color:#cbd5e1; margin-bottom:16px;" id="modalDesc"></div>
+        
+        <h4 style="font-size:13px; text-transform:uppercase; color:#94a3b8; margin-bottom:6px;">Acceptance Criteria / Deliverables:</h4>
+        <div class="criteria-box" id="modalCriteria"></div>
+
+        <div class="meta-grid">
+          <div><strong style="color:#94a3b8;">Sprint:</strong> <span id="modalSprint"></span></div>
+          <div><strong style="color:#94a3b8;">Story Points:</strong> <span id="modalPoints"></span> pts</div>
+          <div><strong style="color:#94a3b8;">Priority:</strong> <span id="modalPriority"></span></div>
+          <div><strong style="color:#94a3b8;">Status:</strong> <span id="modalStatus" style="color:#34d399; font-weight:600;"></span></div>
+          <div><strong style="color:#94a3b8;">Assignee:</strong> <span id="modalAssignee"></span></div>
+          <div><strong style="color:#94a3b8;">Student Reg No:</strong> <span id="modalReg"></span></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-close" onclick="closeModal()">Close Details</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const issues = [
+      // Sprint 1
+      {
+        id: "TSE-101",
+        title: "Project Architecture & Clean Layered Design",
+        sprint: "Sprint 1",
+        epic: "Architecture",
+        status: "done",
+        points: 5,
+        priority: "High",
+        assignee: "Nusair M.N.M.",
+        reg: "EG/2022/5226",
+        role: "Backend & Systems Engineer",
+        desc: "Formulate clean layered architecture (API, Service, Repository, Model) so that the codebase is scalable, secure, and maintainable.",
+        criteria: "Clean directory structure, separation of concerns, and environment configurations verified by academic supervisor."
+      },
+      {
+        id: "TSE-102",
+        title: "Relational Schema Design & Migration System",
+        sprint: "Sprint 1",
+        epic: "Architecture",
+        status: "done",
+        points: 5,
+        priority: "Highest",
+        assignee: "Rajaaei M.N.I.",
+        reg: "EG/2022/5261",
+        role: "Full-Stack & ML Lead",
+        desc: "Design PostgreSQL schema with SQLAlchemy ORM and Alembic migrations for users, customers, and transaction tables.",
+        criteria: "Users, Customers, and Transactions tables with UUID primary keys, foreign keys, and indexes."
+      },
+      {
+        id: "TSE-103",
+        title: "Risk Taxonomy & Regulatory Compliance Mapping",
+        sprint: "Sprint 1",
+        epic: "Compliance",
+        status: "done",
+        points: 3,
+        priority: "Medium",
+        assignee: "Suwaathmi R.",
+        reg: "EG/2022/5361",
+        role: "Project Manager / Scrum Master",
+        desc: "Catalog known fraud vectors (velocity bursts, geolocation spoofing, card testing) and align with ISO 8583 and PCI-DSS standards.",
+        criteria: "Risk categorization matrix mapping 14 fraud vectors to detection logic and audit trail requirements."
+      },
+      {
+        id: "TSE-104",
+        title: "FastAPI Scaffolding & Dynamic Health Monitoring",
+        sprint: "Sprint 1",
+        epic: "DevOps",
+        status: "done",
+        points: 3,
+        priority: "Medium",
+        assignee: "Tharukshan G.",
+        reg: "EG/2022/5367",
+        role: "QA & Compliance Engineer",
+        desc: "Scaffold FastAPI framework with automated health monitoring for database, cache, and service latencies.",
+        criteria: "Health check probe in main.py, automated service monitors, and passing pre-commit git checks."
+      },
+
+      // Sprint 2
+      {
+        id: "TSE-105",
+        title: "JWT Authentication & Cryptographic Session Security",
+        sprint: "Sprint 2",
+        epic: "Security",
+        status: "done",
+        points: 5,
+        priority: "High",
+        assignee: "Tharukshan G.",
+        reg: "EG/2022/5367",
+        role: "QA & Compliance Engineer",
+        desc: "Implement encrypted JWT session tokens and bcrypt password hashing to secure institutional analyst access.",
+        criteria: "HS256 JWT tokens with 60-min expiration, bcrypt hashing, Axios auth interceptor."
+      },
+      {
+        id: "TSE-106",
+        title: "React + Vite Enterprise Design System",
+        sprint: "Sprint 2",
+        epic: "Admin Console",
+        status: "done",
+        points: 5,
+        priority: "Medium",
+        assignee: "Suwaathmi R.",
+        reg: "EG/2022/5361",
+        role: "Project Manager / Scrum Master",
+        desc: "Modern responsive design system with dark/light themes so that monitoring high-velocity transactions is intuitive.",
+        criteria: "TailwindCSS design tokens, Radix UI primitives, responsive layout supporting desktop and tablet."
+      },
+      {
+        id: "TSE-107",
+        title: "Executive Real-Time Risk Analytics Dashboard",
+        sprint: "Sprint 2",
+        epic: "Admin Console",
+        status: "done",
+        points: 8,
+        priority: "Highest",
+        assignee: "Suwaathmi R.",
+        reg: "EG/2022/5361",
+        role: "Project Manager / Scrum Master",
+        desc: "Live dashboard polling transaction stats every 2 seconds so that emerging fraud waves are spotted immediately.",
+        criteria: "Real-time KPI cards: Total Transactions, Blocked Frauds, Active Risk Index, with trend charts."
+      },
+      {
+        id: "TSE-108",
+        title: "Customer Directory & Historical Spend Profiling",
+        sprint: "Sprint 2",
+        epic: "Admin Console",
+        status: "done",
+        points: 5,
+        priority: "Medium",
+        assignee: "Suwaathmi R.",
+        reg: "EG/2022/5361",
+        role: "Project Manager / Scrum Master",
+        desc: "Searchable customer directory with past transaction counts and risk score indicators.",
+        criteria: "Searchable customer table, risk score indicators, direct customer freeze toggle."
+      },
+
+      // Sprint 3
+      {
+        id: "TSE-109",
+        title: "Supervised XGBoost Known Fraud Pattern Classifier",
+        sprint: "Sprint 3",
+        epic: "Machine Learning",
+        status: "done",
+        points: 8,
+        priority: "Highest",
+        assignee: "Rajaaei M.N.I.",
+        reg: "EG/2022/5261",
+        role: "Full-Stack & ML Lead",
+        desc: "Train gradient boosted decision trees on historical transaction datasets to accurately predict known fraud signatures.",
+        criteria: "High ROC-AUC, low false-positive rate, sub-5ms evaluation latency."
+      },
+      {
+        id: "TSE-110",
+        title: "Deep Autoencoder Neural Network for Zero-Day Anomalies",
+        sprint: "Sprint 3",
+        epic: "Machine Learning",
+        status: "done",
+        points: 8,
+        priority: "Highest",
+        assignee: "Rajaaei M.N.I.",
+        reg: "EG/2022/5261",
+        role: "Full-Stack & ML Lead",
+        desc: "Unsupervised Deep Autoencoder to catch novel zero-day fraud attempts never seen in past training data.",
+        criteria: "5-layer symmetrical architecture, reconstruction error MSE thresholding."
+      },
+      {
+        id: "TSE-111",
+        title: "Real-Time Redis Sliding-Window Velocity Tracking",
+        sprint: "Sprint 3",
+        epic: "Feature Eng",
+        status: "done",
+        points: 5,
+        priority: "High",
+        assignee: "Tharukshan G.",
+        reg: "EG/2022/5367",
+        role: "QA & Compliance Engineer",
+        desc: "In-memory sliding-window velocity checks so that automated card testing bursts are throttled in real time.",
+        criteria: "Redis 1-hour window transaction count per cardholder, sub-1ms key lookup."
+      },
+      {
+        id: "TSE-112",
+        title: "Deterministic Safety Tier & Mobile Cardholder Freeze",
+        sprint: "Sprint 3",
+        epic: "Security",
+        status: "done",
+        points: 5,
+        priority: "Highest",
+        assignee: "Nusair M.N.M.",
+        reg: "EG/2022/5226",
+        role: "Backend & Systems Engineer",
+        desc: "Allow cardholders to instantly freeze cards with immediate FROZEN_CARD decline preceding ML evaluations.",
+        criteria: "Deterministic Tier 1 check, instant decline, database synchronization."
+      },
+
+      // Sprint 4
+      {
+        id: "TSE-113",
+        title: "SHAP Explainable AI & Regulatory Reason Codes",
+        sprint: "Sprint 4",
+        epic: "Explainability",
+        status: "done",
+        points: 5,
+        priority: "High",
+        assignee: "Rajaaei M.N.I.",
+        reg: "EG/2022/5261",
+        role: "Full-Stack & ML Lead",
+        desc: "Compute Shapley feature attributions on flagged transactions so analysts receive human-understandable reason codes.",
+        criteria: "Top 3 contributory factors per decision, regulatory audit trail reason codes."
+      },
+      {
+        id: "TSE-114",
+        title: "Multi-Factor Authentication (2FA) & Security Hardening",
+        sprint: "Sprint 4",
+        epic: "Security",
+        status: "done",
+        points: 5,
+        priority: "High",
+        assignee: "Nusair M.N.M.",
+        reg: "EG/2022/5226",
+        role: "Backend & Systems Engineer",
+        desc: "Implement TOTP-based 2FA with authenticator apps and cryptographically signed password reset.",
+        criteria: "QR code secret provisioning, 6-digit OTP verification, reset token expiry."
+      },
+      {
+        id: "TSE-115",
+        title: "Sub-10ms Pipeline Optimization & Concurrency Testing",
+        sprint: "Sprint 4",
+        epic: "Performance",
+        status: "done",
+        points: 5,
+        priority: "Highest",
+        assignee: "Tharukshan G.",
+        reg: "EG/2022/5367",
+        role: "QA & Compliance Engineer",
+        desc: "Optimize full evaluation pipeline under 10 milliseconds across rules, ML, and database writes.",
+        criteria: "Mean latency < 7.5ms, p99 < 10ms, concurrent load tests passing without lock contention."
+      },
+      {
+        id: "TSE-116",
+        title: "E-Commerce Sandbox & Final Evaluation Validation",
+        sprint: "Sprint 4",
+        epic: "Integration",
+        status: "done",
+        points: 5,
+        priority: "Highest",
+        assignee: "Suwaathmi R.",
+        reg: "EG/2022/5361",
+        role: "Project Manager / Scrum Master",
+        desc: "Build realistic e-commerce checkout interface simulating real-time scrutinization verdicts.",
+        criteria: "Instant approved/flagged/blocked feedback, sub-second analyst dashboard sync."
+      }
+    ];
+
+    let currentSprint = 'ALL';
+
+    function setSprint(sprint) {
+      currentSprint = sprint;
+      const buttons = document.querySelectorAll('#sprintTabs .tab-btn');
+      buttons.forEach(btn => {
+        if (btn.innerText.includes(sprint) || (sprint === 'ALL' && btn.innerText.includes('All'))) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+      renderBoard();
+    }
+
+    function renderBoard() {
+      const assigneeFilter = document.getElementById('assigneeFilter').value;
+      const searchFilter = document.getElementById('searchInput').value.toLowerCase();
+
+      const filtered = issues.filter(issue => {
+        const matchesSprint = currentSprint === 'ALL' || issue.sprint === currentSprint;
+        const matchesAssignee = assigneeFilter === 'ALL' || issue.assignee.includes(assigneeFilter);
+        const matchesSearch = issue.title.toLowerCase().includes(searchFilter) || 
+                              issue.id.toLowerCase().includes(searchFilter) ||
+                              issue.epic.toLowerCase().includes(searchFilter);
+        return matchesSprint && matchesAssignee && matchesSearch;
+      });
+
+      const cols = {
+        todo: document.getElementById('col-todo'),
+        inprogress: document.getElementById('col-inprogress'),
+        review: document.getElementById('col-review'),
+        done: document.getElementById('col-done')
+      };
+
+      Object.values(cols).forEach(col => col.innerHTML = '');
+
+      const counts = { todo: 0, inprogress: 0, review: 0, done: 0 };
+
+      filtered.forEach(issue => {
+        counts[issue.status]++;
+        const card = document.createElement('div');
+        card.className = 'issue-card';
+        card.onclick = () => openModal(issue);
+
+        const initials = issue.assignee.split(' ').map(n => n[0]).join('').slice(0, 2);
+        const priorityClass = issue.priority === 'Highest' ? 'p-highest' : (issue.priority === 'High' ? 'p-high' : 'p-medium');
+
+        card.innerHTML = `
+          <div class="card-top">
+            <span class="issue-key">${issue.id}</span>
+            <span class="epic-tag">${issue.epic}</span>
+          </div>
+          <div class="card-title">${issue.title}</div>
+          <div class="card-meta">
+            <div class="assignee-info">
+              <span class="avatar-sm">${initials}</span>
+              <span>${issue.assignee}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span class="priority-badge ${priorityClass}">${issue.priority}</span>
+              <span class="story-points">${issue.points}</span>
+            </div>
+          </div>
+        `;
+        cols[issue.status].appendChild(card);
+      });
+
+      document.getElementById('count-todo').innerText = counts.todo;
+      document.getElementById('count-inprogress').innerText = counts.inprogress;
+      document.getElementById('count-review').innerText = counts.review;
+      document.getElementById('count-done').innerText = counts.done;
+    }
+
+    function openModal(issue) {
+      document.getElementById('modalKey').innerText = issue.id;
+      document.getElementById('modalEpic').innerText = issue.epic;
+      document.getElementById('modalTitle').innerText = issue.title;
+      document.getElementById('modalDesc').innerText = issue.desc;
+      document.getElementById('modalCriteria').innerText = issue.criteria;
+      document.getElementById('modalSprint').innerText = issue.sprint;
+      document.getElementById('modalPoints').innerText = issue.points;
+      document.getElementById('modalPriority').innerText = issue.priority;
+      document.getElementById('modalStatus').innerText = issue.status.toUpperCase();
+      document.getElementById('modalAssignee').innerText = `${issue.assignee} (${issue.role})`;
+      document.getElementById('modalReg').innerText = issue.reg;
+      document.getElementById('detailModal').classList.add('active');
+    }
+
+    function closeModal(e) {
+      document.getElementById('detailModal').classList.remove('active');
+    }
+
+    // Initial render
+    renderBoard();
+  </script>
+</body>
+</html>

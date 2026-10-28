@@ -32,7 +32,7 @@ const Dashboard = () => {
           const mappedTxns = (Array.isArray(data) ? data : []).map(txn => ({
             id: txn.id,
             time: txn.timestamp ? new Date(txn.timestamp).toLocaleTimeString() : 'N/A',
-            amount: `LKR ${Number(txn.amount || 0).toFixed(2)}`,
+            amount: `${(txn.currency === 'LKR') ? 'LKR ' : '$'}${Number(txn.amount || 0).toFixed(2)}`,
             merchant: txn.merchant || 'Unknown',
             customer_name: txn.customer_name || 'Anonymous',
             card_info: `${txn.card_type || 'Card'} •••• ${txn.card_last_four || '0000'}`,

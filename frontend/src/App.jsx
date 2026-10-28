@@ -15,6 +15,7 @@ import Landing from "./pages/Landing.jsx";
 import ForgotPassword from "./pages/ForgotPassword.jsx";
 import ResetPassword from "./pages/ResetPassword.jsx";
 import CheckoutPage from "./simulator/CheckoutPage.jsx";
+import AgileBoard from "./pages/AgileBoard.jsx";
 import { AuthProvider, useAuth } from "./hooks/useAuth.jsx";
 import AppLayout from "./components/Layout/AppLayout.jsx";
 import SessionTimeout from "./components/Common/SessionTimeout.jsx";
@@ -34,6 +35,21 @@ const AppContent = () => {
           <Route path="/demo" element={<CheckoutPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="*" element={<CheckoutPage />} />
+        </Routes>
+        <Toaster />
+      </>
+    );
+  }
+
+  // 1.5 Standalone Agile Sprint Board (Jira Equivalent) — always accessible for evaluation demo
+  const isAgile = location.pathname.startsWith('/agile') || location.pathname.startsWith('/sprints');
+  if (isAgile) {
+    return (
+      <>
+        <Routes>
+          <Route path="/agile" element={<AgileBoard />} />
+          <Route path="/sprints" element={<AgileBoard />} />
+          <Route path="*" element={<AgileBoard />} />
         </Routes>
         <Toaster />
       </>
@@ -80,6 +96,8 @@ const AppContent = () => {
           <Route path="/customers" element={<Customers />} />
           <Route path="/configuration" element={<Configuration />} />
           <Route path="/reports" element={<Reports />} />
+          <Route path="/agile" element={<AgileBoard />} />
+          <Route path="/sprints" element={<AgileBoard />} />
           <Route path="/system-admin" element={<SystemAdmin />} />
           <Route path="/profile" element={<ProfileSettings />} />
           <Route path="/help" element={<Help />} />

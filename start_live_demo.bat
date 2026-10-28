@@ -17,7 +17,7 @@ timeout /t 5 /nobreak >nul
 :: 2. Start Cloudflare Tunnel in a separate window
 echo [2/2] Starting Cloudflare Public Tunnel...
 cd /d %~dp0
-start "TSE-Tunnel" cmd /k "title TSE-Tunnel && echo =================================================== && echo   LOOK FOR THE URL BELOW ENDING WITH: trycloudflare.com && echo   COPY THAT URL INTO VERCEL VITE_API_BASE_URL && echo =================================================== && \"C:\Program Files (x86)\cloudflared\cloudflared.exe\" tunnel --url http://localhost:8000"
+start "TSE-Tunnel" cmd /k "title TSE-Tunnel && echo =================================================== && echo   LOOK FOR THE URL BELOW ENDING WITH: trycloudflare.com && echo   COPY THAT URL INTO VERCEL VITE_API_BASE_URL && echo =================================================== && \"C:\Program Files (x86)\cloudflared\cloudflared.exe\" tunnel --edge-ip-version 4 --protocol http2 --url http://127.0.0.1:8000"
 
 echo.
 echo ========================================================

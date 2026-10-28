@@ -174,14 +174,14 @@ const Transactions = () => {
             <div className="flex gap-2">
               <Input
                 type="number"
-                placeholder="Min LKR"
+                placeholder="Min Amount"
                 value={filters.minAmt}
                 onChange={(e) => setFilters({...filters, minAmt: e.target.value})}
                 className="w-1/2"
               />
               <Input
                 type="number"
-                placeholder="Max LKR"
+                placeholder="Max Amount"
                 value={filters.maxAmt}
                 onChange={(e) => setFilters({...filters, maxAmt: e.target.value})}
                 className="w-1/2"
@@ -260,7 +260,7 @@ const Transactions = () => {
                   </TableCell>
                   <TableCell className="text-foreground">{txn.merchant}</TableCell>
                   <TableCell className="text-right tabular-nums font-semibold text-foreground">
-                    LKR {txn.amount.toFixed(2)}
+                    {(txn.currency === 'LKR' ? 'LKR ' : '$') + Number(txn.amount).toFixed(2)}
                   </TableCell>
                   <TableCell className="text-center tabular-nums font-medium">
                     <span className={txn.fraud_score > declineThreshold ? 'text-red-600 dark:text-red-400 font-semibold' : (txn.fraud_score > reviewThreshold ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-muted-foreground')}>
@@ -309,7 +309,7 @@ const Transactions = () => {
                 </div>
                 <div>
                   <span className="text-muted-foreground block">Amount</span>
-                  <span className="font-semibold text-foreground tabular-nums">LKR {selectedTransaction.amount.toFixed(2)}</span>
+                  <span className="font-semibold text-foreground tabular-nums">{(selectedTransaction.currency === 'LKR' ? 'LKR ' : '$') + Number(selectedTransaction.amount).toFixed(2)}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground block">Merchant</span>

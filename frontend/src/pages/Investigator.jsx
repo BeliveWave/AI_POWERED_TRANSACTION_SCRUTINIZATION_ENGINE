@@ -30,7 +30,7 @@ const Investigator = () => {
     fetchInvestigations();
   }, []);
 
-  const formatCurrency = (amount) => `LKR ${parseFloat(amount).toFixed(2)}`;
+  const formatCurrency = (amount, currency = 'USD') => `${(currency === 'LKR') ? 'LKR ' : '$'}${parseFloat(amount).toFixed(2)}`;
   
   const getFeatureLabel = (featureKey) => {
     const map = {
@@ -106,7 +106,7 @@ const Investigator = () => {
                   
                   <div>
                     <div className="font-medium text-foreground">{inv.customer_name}</div>
-                    <div className="text-muted-foreground tabular-nums text-xs mt-0.5">{formatCurrency(inv.amount)}</div>
+                    <div className="text-muted-foreground tabular-nums text-xs mt-0.5">{formatCurrency(inv.amount, inv.currency)}</div>
                   </div>
 
                   <div className="flex items-center justify-between text-xs text-muted-foreground pt-1.5 border-t border-border">
@@ -144,7 +144,7 @@ const Investigator = () => {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                     <div className="p-3.5 rounded-lg border border-border bg-muted/30">
                       <div className="text-muted-foreground text-xs uppercase font-semibold">Amount</div>
-                      <div className="font-bold tabular-nums text-foreground mt-0.5">{formatCurrency(selectedCase.amount)}</div>
+                      <div className="font-bold tabular-nums text-foreground mt-0.5">{formatCurrency(selectedCase.amount, selectedCase.currency)}</div>
                     </div>
                     <div className="p-3.5 rounded-lg border border-border bg-muted/30">
                       <div className="text-muted-foreground text-xs uppercase font-semibold">Merchant</div>
