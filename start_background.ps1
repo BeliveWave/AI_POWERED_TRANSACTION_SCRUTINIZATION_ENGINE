@@ -24,7 +24,7 @@ $cloudflared = "C:\Program Files (x86)\cloudflared\cloudflared.exe"
 $logFile = "$rootDir\tunnel_live.log"
 if (Test-Path $logFile) { Remove-Item $logFile -Force -ErrorAction SilentlyContinue }
 
-$tunnelProc = Start-Process -FilePath $cloudflared -ArgumentList "tunnel --url http://localhost:8000" -RedirectStandardError $logFile -WindowStyle Hidden -PassThru
+$tunnelProc = Start-Process -FilePath $cloudflared -ArgumentList "tunnel --edge-ip-version 4 --protocol http2 --url http://127.0.0.1:8000" -RedirectStandardError $logFile -WindowStyle Hidden -PassThru
 
 Write-Host "Starting Cloudflare tunnel in background (PID: $($tunnelProc.Id))..."
 Start-Sleep -Seconds 4

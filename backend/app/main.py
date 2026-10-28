@@ -570,6 +570,7 @@ def get_recent_transactions(limit: int = 10, db: Session = Depends(get_db)):
             "customer_id": txn.customer_id,
             "merchant": txn.merchant or "Online Checkout",
             "amount": float(txn.amount or 0.0),
+            "currency": txn.currency or "USD",
             "timestamp": txn.timestamp,
             "fraud_score": txn.fraud_score or 0.0,
             "status": txn.status or "Approve",
@@ -663,6 +664,7 @@ def get_transactions(
             "card_type": txn.customer.card_type if txn.customer else "",
             "timestamp": txn.timestamp,
             "amount": txn.amount,
+            "currency": txn.currency or "USD",
             "merchant": txn.merchant,
             "fraud_score": txn.fraud_score,
             "status": txn.status
